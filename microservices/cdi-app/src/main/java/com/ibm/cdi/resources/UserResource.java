@@ -14,8 +14,28 @@ public class UserResource {
     //    private UserService userService = new UserService();
 //    @Inject
 //    private UserService userService;
+//    @Inject
+//    UserService userService;
+
+     UserService userService;
+
+//    public UserService getUserService() {
+//        return userService;
+//    }
+//
+//    @Inject
+//    public void setUserService(UserService userService) {
+//        this.userService = userService;
+//    }
+
+
+    public UserResource() {
+    }
+
     @Inject
-    UserService userService;
+    public UserResource(UserService userService) {
+        this.userService = userService;
+    }
 
     @GET
     public List<String> findAll() {
