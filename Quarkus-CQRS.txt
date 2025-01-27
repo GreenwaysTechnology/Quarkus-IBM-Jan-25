@@ -1,0 +1,59 @@
+		Pattern: Command Query Responsibility Segregation (CQRS) 
+
+Command Query Responsibility Segregation (CQRS) is an architectural pattern that separates the responsibility of updating data (commands) and reading data (queries) in a system. It’s useful when you want to scale read and write workloads independently or when the read and write models require different optimizations.
+
+Command :  ACTIONS
+ CREATE
+ UPDATE
+ DELETE
+
+Query : Read
+ SELECT
+
+In a Microservice, you might have written CURD operations.
+The microservice accessed by other microservices or clients (web apps,mobile apps,third parties) - send data and read data.
+
+In general read is more where as write is less. 
+
+if you keep read and write code in a single code base, there is possibility of performance issue - we need to Segregate the Read code and write code as separate application
+ 
+- OrderCommandService - an application
+- OrderQueryService - another application
+
+			     Order Service App
+			         |
+			------------------------
+			|		       |
+		  OrderCommand Service       OrderQueryService
+			|			  |
+		---------------------------------------	    
+				OrderDb
+				  |
+			------------------------------
+		Order View/History Database      OrderCommandDatabase
+			|				|
+			.................................
+				      |
+				   Kafka Broker
+
+
+Why ?
+1.Separation of Concerns: Commands (writes) and Queries (reads) are implemented as separate   resources.
+2.Transactional Safety: The command resource uses @Transactional to ensure database consistency.
+3.Optimizations: The query resource is optimized for fetching data and does not involve complex logic.
+
+Task:
+  Create new app called Customercqrs
+
+Multi module maven project
+
+ quarks create app customercqrs
+              |
+              customercommandservice
+              customerqueryservice
+
+since we focus the same database , we can keep all dependencies in root project.
+               
+
+
+
