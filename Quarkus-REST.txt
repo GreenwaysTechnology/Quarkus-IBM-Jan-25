@@ -787,7 +787,7 @@ public class NonBlockingResource {
     }
 }
 ..................................................................................
-						Streaming -Sending item by item
+				Streaming -Sending item by item
 ....................................................................................
 Sending sequence of values over period of time.
 
