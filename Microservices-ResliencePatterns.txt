@@ -1,0 +1,242 @@
+		   Microservice communications and fault Tolerance
+.....................................................................................
+
+Microservices are independent applications, which are running separate process..
+When services are communicating there is possibility services may not be available, or services may be down.
+
+Caller services need to handle such failures in graceful way, that's where Fault Tolerance Design patterns come into picture.
+
+The Communication with external systems are inherently unreliable.
+
+This increases demand of resilience of applications.
+
+How to handle Resilience?
+
+Eclipse MicroProfile Fault Tolerance specification provides ways to handle failures.
+
+Fault Tolerance provides developers with the following strategies for dealing with failure:
+
+Timeout: Define a maximum duration for execution
+
+Retry: Attempt execution again if it fails
+
+Bulkhead: Limit concurrent execution so that failures in that area can’t overload the whole system
+
+CircuitBreaker: Automatically fail fast when execution repeatedly fails
+
+Fallback: Provide an alternative solution when execution fails
+ 
+SmallRye Provides implementation via annotations.
+
+Quarkus uses that implementation.
+
+@Timeout - fail if the invocation takes too long
+@Retry -  Retry several times incase of a failure
+@CircuitBreaker- Prevent Invocations if previous invocations failed too often
+@BulkHead - Limit Concurrent invocations.
+@Fallback -Provides alternate result incase of any failure.
+
+
+Timeout:
+ Timeout prevents from the execution from waiting forever.
+It is recommended that a microservice invocation should have timeout associated with.
+
+Caller ---calling--------callee
+
+The caller expects response within some predefined time. if callee not possible to return results on time... then callee will throw an exception called "TimeoutException"
+
+For eg, the caller expects response from the callee, with 1000ms, if callee takes beyond that, then TimeoutException is thrown.
+
+steps:
+1.create project.
+>quarkus create app code-with-quarkus-resilience
+2.add depdency
+quarkus ext add quarkus-smallrye-fault-tolerance
+
+Callee:
+
+package com.ibm.fault.timeout;
+
+import jakarta.enterprise.context.ApplicationScoped;
+
+import java.util.List;
+
+@ApplicationScoped
+public class TimeoutService {
+
+    public List<String> getProducts() throws InterruptedException {
+        //Simulate Delay
+        Thread.sleep(5000);
+        return List.of("Product1", "Product2");
+    }
+}
+
+Caller:
+package com.ibm.fault.timeout;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.faulttolerance.Timeout;
+
+import java.util.List;
+
+@Path("timeout")
+public class TimeoutResource {
+    @Inject
+    TimeoutService timeoutService;
+
+    @GET
+    @Timeout(1000)
+    public List<String> getProducts() throws InterruptedException {
+        return timeoutService.getProducts();
+    }
+}
+
+After running this code, you will get the exception like below
+
+org.eclipse.microprofile.faulttolerance.exceptions.TimeoutException: 
+com.ibm.fault.timeout.TimeoutResource#getProducts timed out
+	at io.smallrye.faulttolerance.core.timeout.Timeout.timeoutException(Timeout.java:91)
+	at io.smallrye.faulttolerance.core.timeout.Timeout.doApply(Timeout.java:78)
+	at io.smallrye.faulttolerance.core.timeout.Timeout.apply(Timeout.java:30)
+	at io.smallrye.faulttolerance.FaultToleranceInterceptor.syncFlow(FaultToleranceInterceptor.java:255)
+	at io.smallrye.faulttolerance.FaultToleranceInterceptor.intercept(FaultToleranceInterceptor.java:182)
+	at io.smallrye.faulttolerance.FaultToleranceInterceptor_Bean.intercept(Unknown Source)
+	at io.quarkus.arc.impl.InterceptorInvocation.invoke(InterceptorInvocation.java:42)
+
+
+Here callee is throwing exception to caller , now propagating the exception to callee is not recommended.
+
+We need to convert exception into meaning full response.
+
+How to convert?
+ Fallback response
+
+package com.ibm.fault.timeout;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.faulttolerance.Fallback;
+import org.eclipse.microprofile.faulttolerance.Timeout;
+
+import java.util.List;
+
+@Path("timeout")
+public class TimeoutResource {
+    @Inject
+    TimeoutService timeoutService;
+
+    @GET
+    @Timeout(1000)
+    @Fallback(fallbackMethod = "getProductsFromCache")
+    public List<String> getProducts() throws InterruptedException {
+        return timeoutService.getProducts();
+    }
+
+    public List<String> getProductsFromCache() {
+        return List.of("Dummy Products");
+    }
+}
+Global Configuration: application.properties
+#Global fault tolerance configuration - timeout
+mp.fault.tolerance.timeout.enabled=true 
+mp.fault.tolerance.default-duration=1000
+
+...................................................................................				 	 Bulk Head
+...................................................................................
+
+
+BulkHead:
+   The idea behind bulkhead is to set a limit on the number of concurrent calls we make to a remote service.
+
+ The Bulkhead pattern is to prevent faults in one part of the system from cascading to the entire system, which might bring down the whole system. The implementation is to limit the number of concurrent requests accessing to an instance.
+
+package com.ibm.fault.bulkhead;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.faulttolerance.Bulkhead;
+
+
+@Path("/bulkhead")
+public class BulkHeadResource {
+
+    @GET
+    @Bulkhead(value = 5)
+    public Response dontOverload() {
+        System.out.println("Api is called");
+        return Response.ok("bulk").build();
+    }
+}
+How to test bulk head?
+
+you have to install any load testing tool
+-Apache benchmark
+-Soap UI benchmark
+-node based tools
+ -loadtest
+
+How to install load test?
+
+npm install loadtest -g
+
+>loadtest -n 100 -c 10 http://localhost:8080/bulkhead
+
+After running this you , you get Exception
+
+024-02-28 17:13:00,374 ERROR [io.qua.ver.htt.run.QuarkusErrorHandler] (executor-thread-44) HTTP Request to 
+/bulkhead failed, error id: 9dc46732-9fc4-425c-9e86-1c117858e05c-46: org.eclipse.microprofile.faulttolerance
+.exceptions.BulkheadException: com.ibm.fault.bulkhead.BulkHeadResource#dontOverload rejected from bulkhead  
+ 
+How to avoid exception?
+
+Fallback:
+package com.ibm.fault.bulkhead;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.faulttolerance.Bulkhead;
+import org.eclipse.microprofile.faulttolerance.Fallback;
+
+
+@Path("/bulkhead")
+public class BulkHeadResource {
+
+    @GET
+    @Bulkhead(value = 5)
+    @Fallback(fallbackMethod = "handleBulkHead")
+    public Response dontOverload() {
+        System.out.println("Api is called");
+        return Response.ok("bulk").build();
+    }
+
+    public Response handleBulkHead() {
+        System.out.println("fallback response");
+        return Response.ok("sorry System busy").build();
+    }
+}
+
+>loadtest -n 100 -c 10 http://localhost:8080/bulkhead
+
+Api is called
+Api is called
+Api is called
+Api is called
+Api is called
+fallback response
+fallback response
+fallback response
+fallback response
+fallback response
+fallback response
+fallback response
+fallback response
+fallback response
+fallback response
+fallback response
+Api is called
+Api is called
