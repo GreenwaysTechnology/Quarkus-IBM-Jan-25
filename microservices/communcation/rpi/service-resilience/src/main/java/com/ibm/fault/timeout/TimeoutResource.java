@@ -12,19 +12,32 @@ import java.util.List;
 @Path("timeout")
 public class TimeoutResource {
 
-//    @Inject
-//    TimeoutService timeoutService;
-
     @Inject
-    @RestClient
-    ProductServiceRestClient productServiceRestClient;
+    TimeoutService timeoutService;
+
+//    @Inject
+//    @RestClient
+//    ProductServiceRestClient productServiceRestClient;
 
     @GET
-    @Timeout(500)
+    @Path("global")
+    @Timeout // Uses global configuration (1000 ms)
+    public String globalTimeoutMethod() {
+        // Simulate a long-running task
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return "Global Timeout";
+    }
+
+    @GET
+    @Timeout()
     @Fallback(fallbackMethod = "fallback")
     public List<String> timeout() throws InterruptedException {
-        // return timeoutService.getProducts();
-        return productServiceRestClient.getProducts();
+        return timeoutService.getProducts();
+//        return productServiceRestClient.getProducts();
     }
 
     public List<String> fallback() {

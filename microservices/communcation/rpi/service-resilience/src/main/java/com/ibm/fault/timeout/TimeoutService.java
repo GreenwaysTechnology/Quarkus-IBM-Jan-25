@@ -9,7 +9,7 @@ public class TimeoutService {
 
     public List<String> getProducts() throws InterruptedException {
         //Simulate Delay
-        Thread.sleep(5000);
+        Thread.sleep(1000);
         return List.of("Product1", "Product2");
     }
 }

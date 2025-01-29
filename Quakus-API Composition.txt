@@ -1,0 +1,317 @@
+			The API Composition Pattern
+..............................................................................................
+
+The API Composition Pattern is a microservices design pattern used to aggregate data from multiple services into a single response, often used in scenarios where a client needs data from multiple sources.
+
+API Composition Pattern Overview:
+
+The API Composition Pattern involves:
+
+A composite service that acts as an orchestrator, calling multiple microservices.
+
+Multiple downstream services that provide specific data.
+
+Aggregating the responses from these services into a single response for the client.
+
+Steps to Implement API Composition in Quarkus
+
+1. Set Up Quarkus Project
+Create a Quarkus project using the Quarkus CLI 
+
+quarkus create app api-composor
+
+
+
+
+ <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client</artifactId>
+        </dependency>
+   <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client-jackson</artifactId>
+        </dependency>
+
+   <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-openapi</artifactId>
+        </dependency>
+
+
+2. Define Downstream Services
+
+Assume you have two downstream services:
+
+User Service: Provides user details.
+
+Order Service: Provides order details.
+
+These services can be RESTful endpoints or gRPC services or GraphQL services
+
+
+3. Create the Composite Service
+
+The composite service will call the downstream services and aggregate their responses.
+
+Example: CompositeResource.java
+
+Benefits of API Composition in Quarkus
+
+Performance: Quarkus's reactive and non-blocking capabilities make it ideal for composing APIs.
+
+Simplicity: The RestClient simplifies calling external services.
+
+Scalability: Quarkus is designed for cloud-native environments, making it easy to scale.
+
+Considerations
+
+Error Handling: Handle errors from downstream services gracefully.
+
+Caching: Use caching to reduce the load on downstream services.
+
+Timeouts: Set appropriate timeouts for REST client calls.
+
+
+Note:
+Each Service can be different apps
+
+Orderservice
+UserService
+CompositService -api composer
+
+For this eg, i have combined as single app
+
+Down Stream Microservices:
+
+Order:
+
+package com.ibm.apicomposor.order;
+
+public class Order {
+    public String orderId;
+    public String productName;
+    public double price;
+
+    public Order() {
+    }
+
+    public Order(String orderId, String productName, double price) {
+        this.orderId = orderId;
+        this.productName = productName;
+        this.price = price;
+    }
+
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
+    }
+
+    public String getProductName() {
+        return productName;
+    }
+
+    public void setProductName(String productName) {
+        this.productName = productName;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public void setPrice(double price) {
+        this.price = price;
+    }
+
+    @Override
+    public String toString() {
+        return "Order{" +
+                "orderId='" + orderId + '\'' +
+                ", productName='" + productName + '\'' +
+                ", price=" + price +
+                '}';
+    }
+}
+
+package com.ibm.apicomposor.order;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+@Path("orders")
+public class OrderResource {
+
+    @GET
+    public Order getOrders() {
+        return new Order("1", "IPHONE 16", 10000.00f);
+    }
+}
+
+
+User:
+package com.ibm.apicomposor.user;
+
+public class User {
+    private int id;
+    private String name;
+
+    public User() {
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                '}';
+    }
+
+    public User(int id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+package com.ibm.apicomposor.user;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+@Path("users")
+public class UserResource {
+
+    @GET
+    public User getUser() {
+        return new User(1, "Subramanian");
+    }
+}
+
+Composite:
+
+package com.ibm.apicomposor.composer;
+
+import com.ibm.apicomposor.order.Order;
+import com.ibm.apicomposor.user.User;
+
+import java.util.List;
+
+public class CompositeResponse {
+    public User user;
+    public List<Order> orders;
+
+    public CompositeResponse(User user, List<Order> orders) {
+        this.user = user;
+        this.orders = orders;
+    }
+}
+package com.ibm.apicomposor.composer;
+
+import com.ibm.apicomposor.order.Order;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@Path("orders")
+@RegisterRestClient(configKey = "order-service")
+public interface OrderRestClientService {
+    @GET
+    public Order getOrders();
+}
+
+
+package com.ibm.apicomposor.composer;
+
+import com.ibm.apicomposor.user.User;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@Path("users")
+@RegisterRestClient(configKey = "user-service")
+public interface UserRestClientService {
+
+    @GET
+    public User getUser();
+}
+
+package com.ibm.apicomposor.composer;
+
+import com.ibm.apicomposor.order.Order;
+import com.ibm.apicomposor.user.User;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+
+import java.util.List;
+
+@Path("composit")
+public class OrderUserComposerResource {
+    @Inject
+    @RestClient
+    UserRestClientService userService;
+
+    @Inject
+    @RestClient
+    OrderRestClientService orderService;
+
+    @GET
+
+    public CompositeResponse getOrdersAndUser() {
+        User user = userService.getUser();
+        Order order = orderService.getOrders();
+        return new CompositeResponse(user, List.of(order));
+    }
+}
+
+application.properties
+user-service/mp-rest/url=http://localhost:8080
+order-service/mp-rest/url=http://localhost:8080
+
+Testing:
+
+http://localhost:8080/composit
+
+user: {
+id: 1,
+name: "Subramanian"
+},
+orders: [
+{
+orderId: "1",
+productName: "IPHONE 16",
+price: 10000
+}
+]
+}
+
+
+
+
+
+
+
+
+
+
