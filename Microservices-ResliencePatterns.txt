@@ -240,3 +240,208 @@ fallback response
 fallback response
 Api is called
 Api is called
+.....................................................................................
+			       Retry
+.....................................................................................
+
+Types of failures and how to handle them?
+
+1.Fail fast
+2.Fail safe
+
+Fail fast :
+ Caller------invoke api---->throws error-----Handle error instantly...
+
+					     
+					     | attempt-1
+Fail safe				     | attempt-2 -- success-return result
+  Caller---invokes api---throws error---Retry| attempt-3
+                                               attempt-4- Not Recovered throw 					       error-->Use fallback
+
+
+
+package com.ibm.fault.retries;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.faulttolerance.Fallback;
+import org.eclipse.microprofile.faulttolerance.Retry;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
+@Path("retry")
+public class RetryResource {
+
+    private AtomicLong counter = new AtomicLong();
+    private float failureRatio = 0.5f;
+    AtomicInteger noOfAttempt = new AtomicInteger();
+
+    @GET
+    @Retry(maxRetries = 3, retryOn = RuntimeException.class)
+    @Fallback(fallbackMethod = "fallbackResponse")
+    public List<String> getProducts() {
+        int attempt = noOfAttempt.incrementAndGet();
+        final Long invocationNumber = counter.getAndIncrement();
+        System.out.println("Attempt : " + attempt + " at" + LocalDateTime.now());
+        maybeFail(String.format("Retry Resource#getProducts invocation %d failed", invocationNumber));
+        return List.of("Product1", "Product2");
+    }
+
+    private void maybeFail(String failureMessage) {
+        if (new Random().nextFloat() < failureRatio) {
+            throw new RuntimeException("Resource failed");
+        }
+    }
+
+    public List<String> fallbackResponse() {
+        return List.of("FallbackResponse:retries exhausted");
+    }
+}
+
+Testing:
+ http://localhost:8080/retry.
+you can keep on refreshing the page, once the no of failures, are deducted it will throw error, when ever error is occured , it will call fallback methods.
+
+package com.ibm.fault.retries;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.faulttolerance.Fallback;
+import org.eclipse.microprofile.faulttolerance.Retry;
+
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicLong;
+
+@Path("retry")
+public class RetryResource {
+
+    private AtomicLong counter = new AtomicLong();
+    private float failureRatio = 0.5f;
+
+    @GET
+    @Retry(maxRetries = 3, retryOn = RuntimeException.class)
+    @Fallback(fallbackMethod = "fallbackProducts")
+    public List<String> getProducts() {
+        final Long invocationNumber = counter.getAndIncrement();
+        maybeFail(String.format("Retry Resource#getProducts invocation %d failed", invocationNumber));
+        return List.of("Product1", "Product2");
+    }
+
+    public List<String> fallbackProducts() {
+        return List.of("Fallback Products");
+    }
+
+    private void maybeFail(String failureMessage) {
+        if (new Random().nextFloat() < failureRatio) {
+            throw new RuntimeException("Resource failed");
+        }
+    }
+}
+.....................................................................................
+			   Circut Breaker 
+....................................................................................
+
+What is cb?
+ cb  is useful for limiting number of failures happening in the system.
+When part of the system becomes temporarily unstable. The Cb records successful and failed invocations of a method.
+
+When the ratio of failed invocation reaches the specified threshold , the cb opens and blocks the future invocations of that method for a given time.
+
+State of CB?
+
+ There are three states of CB.
+
+1.Open
+2.Closed
+3.Half Open
+
+IF CB in Closed State, System is stable, working fine
+IF CB in Open State, System is unstable, not working fine
+IF CB in Half Open State, Still System is unstable but try to recover from failures
+
+ package com.ibm.fault.cb;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
+import org.eclipse.microprofile.faulttolerance.Fallback;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+@Path("cb")
+public class CircuitBreakerResource {
+
+    private AtomicLong counter = new AtomicLong();
+
+    @GET
+    @CircuitBreaker(requestVolumeThreshold = 4)
+    @Fallback(fallbackMethod = "fallback")
+    public List<String> getProducts() {
+        maybeFail();
+        return List.of("Product1", "Product2", "Product");
+    }
+
+    public List<String> fallback() {
+        return List.of("Fallback Responses");
+    }
+
+    private void maybeFail() {
+        final Long invocationCounter = counter.getAndIncrement();
+        if (invocationCounter % 4 > 1) {
+            System.out.println(invocationCounter);
+            throw new RuntimeException("Service Got failed");
+        }
+    }
+
+}
+
+or
+package com.ibm.fault.cb;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
+import org.eclipse.microprofile.faulttolerance.Fallback;
+
+import java.time.LocalDateTime;
+import java.util.concurrent.atomic.AtomicInteger;
+
+@Path("cb")
+public class CircuteBreakerResource {
+    private final AtomicInteger counter = new AtomicInteger(0);
+
+    @GET
+    @CircuitBreaker(
+            requestVolumeThreshold = 4, // no of requests to monitor
+            failureRatio = 0.5,  //Failures to trigger the CB (50%)
+            delay = 5000 // Time in ms in the cb remains open
+    )
+    @Fallback(fallbackMethod = "fallbackResponse")
+    public String simulateCb() {
+        int attempt = counter.incrementAndGet();
+        System.out.println("Attempt : " + attempt + " at " + LocalDateTime.now());
+        //simulate failure
+        if (attempt % 2 == 0) {
+            throw new RuntimeException("Simulated Failure");
+        }
+        return "Success Full Response on attempt " + attempt;
+    }
+
+    public String fallbackResponse() {
+        return "Fallback Response:Circuit is Open!";
+    }
+
+}
+
+
+Testing:
+http://localhost:8080/cb
+  Keep on hitting...
+see the response, whether we get fallback response or service response.
+
