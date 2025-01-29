@@ -11,6 +11,6 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 public interface UserRestClientService {
 
     @GET
-    @Path("/users/{userId}")
+    @Path("{userId}")
     User getUser(@PathParam("userId") String userId);
 }
