@@ -11,7 +11,6 @@ public class Startup {
     public void init(@Observes StartupEvent ev) {
         // Clear existing data
         User.deleteAll();
-
         // Add sample users
         User user1 = new User();
         user1.name = "John Doe";

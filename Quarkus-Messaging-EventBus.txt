@@ -1,4 +1,4 @@
-                          
+                           
 				Microservice Communications
 ..............................................................................................
 
@@ -268,3 +268,118 @@ public class EventResource {
 
 Testing:
 http://localhost:8080/async/subramanian
+
+....................................................................................
+			Fire and Forget Implementation
+...................................................................................
+package com.ibm.service.communication.eventbus;
+
+import io.quarkus.vertx.ConsumeEvent;
+import io.vertx.mutiny.core.eventbus.Message;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class GreetingService {
+
+    @ConsumeEvent("sink")
+    public void process(Message<String> msg) {
+        System.out.println("Address : " + msg.address());
+        System.out.println("Body " + msg.body());
+    }
+}
+
+
+package com.ibm.service.communication.eventbus;
+
+import io.smallrye.mutiny.Uni;
+import io.vertx.mutiny.core.eventbus.EventBus;
+import io.vertx.mutiny.core.eventbus.Message;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+
+@Path("async")
+public class EventResource {
+    @Inject
+    EventBus eventBus;
+
+    @Path("fireandForget")
+    @POST
+    public void process(String payload) {
+        eventBus.<String>requestAndForget("sink", payload);
+    }
+
+}
+.....................................................................................
+			Pub and Sub
+.....................................................................................
+
+One Producer, Multiple Subscribers
+Messages to be delivered to more than one Subscribers.
+
+package com.ibm.service.communication.eventbus;
+
+import io.quarkus.vertx.ConsumeEvent;
+import io.vertx.mutiny.core.eventbus.Message;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class NotificationService {
+
+    @ConsumeEvent("notification")
+    public void subscriberOne(Message<String> message) {
+        System.out.println("Subscriber One");
+        System.out.println(message.address() + " " + message.body());
+    }
+
+    @ConsumeEvent("notification")
+    public void subscriberTwo(Message<String> message) {
+        System.out.println("Subscriber Two");
+        System.out.println(message.address() + " " + message.body());
+
+    }
+
+    @ConsumeEvent("notification")
+    public void subscriberThree(Message<String> message) {
+        System.out.println("Subscriber Three");
+        System.out.println(message.address() + " " + message.body());
+
+    }
+}
+
+package com.ibm.service.communication.eventbus;
+
+import io.smallrye.mutiny.Uni;
+import io.vertx.mutiny.core.eventbus.EventBus;
+import io.vertx.mutiny.core.eventbus.Message;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+
+@Path("async")
+public class EventResource {
+    @Inject
+    EventBus eventBus;
+
+    @Path("{name}")
+    @GET
+    public Uni<String> greeting(@PathParam("name") String name) {
+        return eventBus.<String>request("greeting", name).onItem().transform(Message::body);
+    }
+
+    @Path("fireforgot")
+    @POST
+    public void process(String payload) {
+        eventBus.<String>requestAndForget("sink", payload);
+    }
+
+    @POST
+    @Path("publish")
+    public void publish(String message) {
+        eventBus.publish("notification", message);
+    }
+}

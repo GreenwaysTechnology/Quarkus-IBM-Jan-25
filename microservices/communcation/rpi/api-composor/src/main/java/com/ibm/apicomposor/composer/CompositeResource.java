@@ -46,10 +46,8 @@ public class CompositeResource {
     public CompositeResponse getCompositeData(@PathParam("userId") String userId) {
         // Call User Service
         User user = userService.getUser(userId);
-
         // Call Order Service
         List<Order> orders = orderService.getOrders(userId);
-
         // Aggregate responses
         return new CompositeResponse(user, orders);
     }
