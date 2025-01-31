@@ -89,11 +89,11 @@ Connector can:
 
 2.send messages to a remote broker (outbound)
 
-3.A connector can, of course, implement both directions.InBound and OutBound.
+3.A connector can, of course, implement both directions. Inbound and Outbound.
 
 .........................................................................
 
-Role of InBound connector:
+Role of Inbound connector:
 ..........................
 
 1.Inbound connectors are responsible for:
@@ -108,7 +108,7 @@ Role of InBound connector:
 	1.4.Associating an acknowledgment callback to acknowledge the incoming 	   message when the Reactive Messaging message is processed/acknowledged.
 
 
-Role of OutBound Connector:
+Role of Outbound Connector:
 
 Outbound connectors are responsible for:
 
@@ -398,4 +398,20 @@ public class PriceResource {
                 .onFailure().recoverWithItem("ko");
     }
 }
-.....................................................................................
+............................................................................................
+
+Coding:
+.......
+
+Create project
+I am going to create project using code.quarkus.io website, the reason is we will have boiler plate code for kafka.
+
+
+
+
+
+
+
+
+
+

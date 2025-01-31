@@ -1,0 +1,3421 @@
+		   Event Driven Architecture and Kafka
+.....................................................................................
+Learning Track:
+...............
+
+1.Introduction to kafka 
+2.Kafka Architecture
+3.Kafka Programming using cli
+4.Producers and Consumers
+5.Kafka Connect
+6.Kafka Streams using KsqlDB
+
+Note: we dont use any programming language to connect to produce and consume kafka messages.
+.....................................................................................
+			Apache Kafka
+.....................................................................................
+
+Before Kafka:
+
+Distributed Applications and Data transfer
+..........................................
+
+Application(software system) Develpment patterns:
+.................................................
+
+Network based Applications - Distributed Application
+
+
+Application has layers:
+
+1.User interface layer
+2.Application biz layer
+3.Data Layer /Repository layer
+  3.1.Integration layer
+
+
+Architecture of Distributed Application
+
+1.Mainframework based distributed
+   1.Application biz layer
+   2.Data Layer /Repository layer
+ Where as User interface layer is kept in dump terminals connected to mainframworks.
+
+Drawbacks:
+1.Too costly
+2.scalability is too difficult.
+
+Advantage:
+1.High security
+2.Centeralized management.
+
+
+2.Client Server Architecture
+
+2.1.Main framework based client -server , where as mainframe acts as server and digital computers act as clients.
+ 
+2.2.Digital computer based client - server architechture
+   Servers and clients are digital computers
+
+
+Based on this we can classify the applications  layered /tiered concept
+
+1.single tier/layer
+   client,server,database every is kept in one single machine...
+2.two tier/layer
+  user interface is kept in client machine,
+  data logic and biz logic is kept in server machine
+ both machines are connected via networks
+
+          "This arch based on LAN /WAN"
+
+3.three tier /layer
+
+ This arch based on "internet network" and web computing
+
+   client - client machine
+   server - biz logic is kept inside another machine
+   database - is kept inside another machine
+
+ Client is browser
+ Server BIZ logic is kept as "web Applications"
+ Database is accessed by "Server side technologies - J2EE,ASP/.net,PHP,....
+
+4.N-tier / layer
+
+ Client is browser
+ Server BIZ logic is kept as "web Applications"
+   -Again spilt into multi layered
+ Database is accessed by "Server side technologies - J2EE,ASP/.net,PHP,....
+.....................................................................................
+			Sharing data among layers
+....................................................................................
+Data is every thing..
+
+Every Enterprise is powered by data.
+
+We take information in, analyze it, manipulate it and creates more as output.
+
+Every application creates data, whether it is log messages,metrics,user activity,out going messages, or something else.
+
+Every byte of data has a story to tell, something of imporatance that will inform the next thing to be done.
+
+In order to know what that is, we need to get the data from where it is created to where it can be analyzed.
+
+We see this every day on websites like amazon,youtube,facebook, where our "clicks" on on items of interest to use are turned into recommmendations that are shown to us litte later.
+
+The faster we can do this, the more agile and resonsive our organizations can be.
+The less effort we spend on moving data around, the more we can focus on the core business at hand.
+......
+....................................................................................
+			Publish and Subscribe Messaging (data):
+...................................................................................
+
+Before discussing the Apache Kafka , it is imporant for us to understand the concept of pub/sub messaging and why it is important.
+
+Pub and sub messaging is  a pattern that is characterized by the sender(publisher) of a piece of data (message) not spcificially directing to a reciver, Instead, the publisher classifies the message somewhat, and that receiver(subscriber) subscribes to receive certain of classes of messages.
+
+Pub /Sub systems often have a broker, a central point where messages are published , to facilite this.
+
+.....................................................................................
+			  How enterprise systems handles data
+			             (Pre Kafka)
+....................................................................................
+
+
+Many use cases for pub/sub starts with same way.
+
+   With a simple message queue or interprocess communication channel
+
+for eg, you create an application that needs to send montioring information somewhere. How do you send?
+
+You write monitoring message in a direct connection from your application to an application that displays your metrics on a dashboard, push metrics over that connection.
+
+let us say, you have systems, that system has two servers - frontend server,
+back end server
+
+	  both server sends metrics data to metrics server
+
+		 FrontEnd                 BackEnd Server
+		  Server
+		    |				|
+		    |				|
+		--------------------------------------
+				|
+			    Mertics Server
+
+
+If your server is running in clustered env
+
+		FrontEnd               FrontEnd Server
+		  Server
+		    |				|
+		    |				|
+		--------------------------------------
+				|
+			    Mertics Server
+
+
+		 Backend Server            Backend Server
+		  Server
+		    |				|
+		    |				|
+		--------------------------------------
+				|
+			    Mertics Server
+
+
+
+A single , direct metric servers irresptive of how many backend and front end server
+
+This looks a simple soultion to a problem that works when you are going to getting started with monitoring.
+
+Before long,you decide you would like to analyze your metircs over a longer term,
+that doesnot work very well in dashboard.
+
+When you introduce new service in your biz and where you have to introduce server,
+Now you have three more apps, that generating metrics data ,then metrics server need connect directly , recive,store,anaylze
+..............................................................................
+			Many Metrics publisher, using direct connections
+.....................................................................................
+
+ FrontEnd server  Database Server  Chat server  Mail Server PaymentServer
+         |            |                |           |            |
+-----------------------------------------------------------------------......
+                                |
+			   publish metrics
+				|
+			    Metric Server
+
+
+
+Here all publisher are publishing "directly" metics to Metrics Servers.
+
+       "What if i want to store front data ,database data,back end data separatly"
+
+....................................................................................
+			Loosly Coupled Metric publisher and Server
+		         Introduction of Pub/Sub Messing System
+...................................................................................
+
+ FrontEnd server  Database Server  Chat server  Mail Server PaymentServer
+         |            |                |           |            |
+-----------------------------------------------------------------------
+                                |
+			   publish metrics
+				 |
+			      Metrics
+			      Sub/Pub
+				|
+			    Metric Server
+
+Every Pub sub system is going to store messages inside "Queue" , the basic data storage model.
+In the above system we have only one /Single /Individual Queue System.
+
+Image one of your coworkers has been doing similar work with log messages, another has been working on tracking user behavior on the frontend website and providing that information to developers who are working on machine learning,
+As well as creating some reports for management.
+
+
+...................................................................................
+			 Multi Pub Sub Systems
+...................................................................................
+
+FrontEnd server  Database Server  Chat server  Mail Server PaymentServer 
+         |            |                |           |            |
+-----------------------------------------------------------------------
+                                |
+
+Metrics     Logging              Tracking
+Pub/Sub     Pub/Sub              Pub/Sub
+  |           |                    |
+Metric    ---------             ----------       
+Server    |       |                |
+        Secuirty Log Search      MachingLearning 
+	Analysis Server		 and AI server
+         
+
+Now at last , we have refactored our system, but there is lot of "Duplication"
+Your company is maintaining multiple systems for queuing data, all of which have their own individual bugs and limitations.
+You will have more systems in future it will come.
+
+..................................................................................
+....................................................................................
+			Birth of Kafka :Entering into Kafka
+....................................................................................	
+Apache Kafka is pub/sub messaging system designed to solve the above problem.
+Instead of having multiple  Queue System, we can have only one System where we receive message,organize the message,store,process,and produce the report.
+
+Traditional Messaging Systems:
+..............................
+
+Traditional Messaging systems are built based on the standards like "AMQP" protocal.
+Any pub/sub messaging product like rabbit mq is built on the standards only.
+
+
+According to the AMQP Standards.
+ 
+1.Messages are stored in a queue
+2.Queue stores messages which is tranisent by default. if you want you can persit in disk.
+3.The messages can be altered(update,delete)
+4.The messages are deleted once it is consumed
+
+	"Kafka was not designed based on Traditional Messaging System"
+	 "Kafka was not designed based on AMQP Protocal Specification"
+
+Kafka inspired from "Logging System" or Loggers to store messages, instead of storing message in traditional messaging systems.
+
+ 		"Kafka was designed based on  Loggers"
+
+What is Log?
+   Tracking activites of an application,store those activites in "memory or in  a disk file" in order to analyze them in furture.
+	
+If you are developer, you encounter loggers every day in your development cycle.
+
+Logs gives complete information about the system which is running.
+
+
+if you are java developer, you might have used various logging implementations.
+We call as "Logging Frameworks"
+
+Log gives just information about "what just happened or happing" in your system for eg
+some warings,some info,some bugs, some tracking , some tracing..........
+
+Logs :
+2016-06-16 17:02:13 TRACE Trace log message
+2016-06-16 17:02:13 DEBUG Debug log message
+2016-06-16 17:02:13 INFO  Info log message
+2016-06-16 17:02:13 ERROR Error log message
+
+.....................................................................................
+			 Log structure and its characteristics
+.....................................................................................
+
+Log information is stored in a file called "Log file" - system.log
+Log file is used for future analytics such as debugging,finding warnings,errors...
+
+What is difference between "normal files" and log files?
+
+=>Log files are "append only", you cant add any new entry in between, which makes the file "immutable" - cant be edited or read only.
+
+=>Normal files are based on "Edit Mode" or Replace mode
+    Files are edited or replaced later.
+
+  		"Kafka is just based on Log System"
+		    Kafka is just Logger System
+
+
+
+    Since kafka is logger system is it same as "Slf4j,log4j" Kind of loggers.
+
+Some what yes, but Kafka is more beyond that....
+
+	    Kafka is not based on "traditional log files" 
+
+
+Kafka is fundmentally based on "Commit Logs"
+
+What is commit log?
+    "In data management platforms, a commit is making set of tenative changes permanent".
+    "Making the end of a transaction and providing Durablity to ACID transactions"
+  The record of commits is called "Commit log"
+
+What Kafka is going to record into commit log?
+     Kafka was designed to store informations(data).
+
+What type of information?
+  Any type of information we can store into commit log.
+..........................................................................................................................................................................
+			  Event
+....................................................................................
+What is Event?
+   An Event is any type of action,incident,or change are "happening" or "just happened"
+for eg:
+  Now i am typing,Now i am teaching - happening
+  Just i had coffee,Just i received mail, just i clicked a link, just i searched product - happened.
+
+ "An Event is just remainder or notification of  your happenings or happened"
+...................................................................................
+...................................................................................
+		     Event Driven Architecture(Software system)
+....................................................................................
+
+The Software system can track what is happening, just happended , stores into a file called commit log, later that commit log can be replayed to process those events to produce various reports
+ 			
+			 FronEnd Server
+				|
+			  What is happening or happened
+			 (User has clicked  "iphone 15 link") - event
+				|
+			   store userclick event into log file
+				|
+			     Kafka 
+				|
+			    events.log
+				17-07-2023 3:48:59  iphone 15 link
+				17-07-2023 3:49:58  dell lap top link
+
+Let us imagine, You have mobile apps, which tracks your locations where ever you move, those locations are recorded into a file by "Event Driven System"(Kafka).
+Based on those data , you can get report like that where were you at morning,afternoon,evening...
+
+Eg:
+ Today stock price is $40 at 10Am
+ I met my friend yesterday at east coast road
+ Made payment of $500 to Ramesh
+
+Imgaine i need  somebody or somthing should record every activity of my life from the early moring when i get up and till bed.
+
+  There is a system to record every events of your life that is called 
+			      Kafka
+
+	 Kafka is Event Processing Software , which stores and process events
+
+.....................................................................................
+			Kafka Basic  Architecture
+.....................................................................................
+
+How kafka has been implemented?
+
+   "Kafka is a software"
+   "Kafka is a file(Commit log file) processing software
+   "Kafka is written in java and scala" - Kafka is just java application
+   "In order to run Kafka we need JVM"
+
+How event is represented into kafka?
+
+	Event is just a message.
+        Every message has its own arch.
+        In Kafka the Event/Message is called as "Record".
+		Event(Record)
+
+
+Event Contains Two things:
+..........................
+1.What happened/Happing - Name of the Event
+2.State - Data
+
+State:
+......
+  The state is nothing but data.
+
+State Representation:
+
+ In General state(data) is stored in relational databases "as table"
+ A table represents the state of something like 
+    User - id,name,email,password,city
+
+Since User data can be stored and proceed into tables.
+
+Can we store events into table?
+   Events also has state like things(user,customer,product) in real time.
+
+We can but not all types of events into table.
+........................................................................
+.....................................................................................
+			    Modern Data Modeling
+.....................................................................................
+     Generally domains are modeled based on "Things(Customer,Order,Payment) first"
+	  Now a days People started thinking based on Events first
+          Instead of storing things into database , we store events
+
+Events also has some state like "Things"
+
+   "Events has some description of what happened with it", but Primary idea is that          event is indication in time that thing took place".
+
+How to store events?
+   Logs - Log is structured and the sequence  of the evnets occured in the method calls.
+
+According to Kafka Official Definition:
+
+	"Apache Kafka is an open source distributed streaming system used for stream 	processing, real-data time pipelines, and data integration at scale"
+
+....................................................................................
+			 kafka Distribution - Kafka Setup
+...................................................................................
+
+Kafka was orginally created by "Jay kreps,Neha,Jun Rao" at Linkedin to solve the problems of distributed "Pub/Sub" Message system.
+
+Once the Kafka was ready, Kafka Creators wanted to open source, who released the Kafka under "Apache license" early 2011.
+
+After Kafka relase it become very popular, later Jay ,Neha ,Jun Rao started the company called "Confluent".
+
+Confluent then took Apache Kakfa as a core and who built various production ready tools, support, cloud integration
+
+
+Kafka distribution:
+ Kafka is available in two distribution
+
+1.Apache Kafka
+   It is open source version of kafka 
+
+2.Confluent Kafka
+   It is abstraction of apache kafka, Commericial version of apache kafka
+
+
+Apache kafka vs confluent kafka
+https://www.confluent.io/apache-kafka-vs-confluent/
+
+
+Platforms:
+
+Kafka can be installed any platform
+
+1.Bare metal machines
+  Kafka is available for all operating system.
+
+1.Windows - may be good for basic use cases
+2.Linux - recommended for advanced use cases
+3.mac - recommended for advanced use cases
+
+2.VM env
+  You  can setup kafka on any industry standard VMS - oracle virtual box
+
+3.Container based distributed: - docker and kubernetes
+   It is recommened in development env and also can be used in prod
+
+
+We are going to setup:
+
+Apache Kafka | confluent Kafka
+1.Linux - bare metal machine
+2.Docker - Container
+
+Lab setup:
+
+1.setup linux:
+..............
+
+Linux: Ubuntu 20.x
+
+Lab setup:
+
+1.setup linux:
+..............
+
+Linux: Ubuntu 20.x
+
+sudo apt get-update
+
+sudo apt get-upgrade
+
+1.java 
+
+jdk 11.
+
+sudo apt install openjdk-11-jdk -y
+
+
+2.Windows terminal software 
+   For lanuching linux in multiple tables in single windows
+
+How to install? 
+  windows store - windows termainl
+....................................................................................
+
+Setting up Kafka:
+
+
+1.Apache Kafka -https://kafka.apache.org/
+  =>Source distribution
+	-you can build from the source
+  =>Binary distribution
+        -you can download already built folder
+
+https://downloads.apache.org/kafka
+https://archive.apache.org/dist/kafka
+
+wget https://downloads.apache.org/kafka/3.6.0/kafka_2.12-3.6.0.tgz
+
+2.Extract the folder.
+
+tar -xzf kafka_2.12-3.6.0.tgz
+
+.....................................................................................
+			   Exploring files and folders
+.....................................................................................
+subu@LAPTOP-R2TGGFDL:~$ cd kafka_2.12-3.6.0/
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ls -l
+total 72
+-rw-r--r-- 1 subu subu 14973 Sep 29 10:26 LICENSE
+-rw-r--r-- 1 subu subu 28184 Sep 29 10:26 NOTICE
+drwxr-xr-x 3 subu subu  4096 Sep 29 10:30 bin
+drwxr-xr-x 3 subu subu  4096 Sep 29 10:30 config
+drwxr-xr-x 2 subu subu 12288 Nov 14 14:26 libs
+drwxr-xr-x 2 subu subu  4096 Sep 29 10:30 licenses
+drwxr-xr-x 2 subu subu  4096 Sep 29 10:30 site-docs
+
+Folders:
+ lib
+   contains all jar files necessary to run kafka
+ bin
+   contains the shell script files to run kakfka, contains windows subfolder which contains windows script.
+/kafka_2.12-3.6.0/bin/windows
+
+config:
+ Contains all configurations in order to run kafka server.
+...................................................................................
+			  Core concepts of Kafka
+....................................................................................
+
+Broker:
+  Since kafka is a java program which is deployed on JVM, Kafka runs on the JVM which is process.
+  In kafka context the JVM is called as "Kafka Broker or Kafka Server"
+
+Kafka has been designed based on "distributed arch" -  By default kafka is distributed.
+
+General Characteristics of Distributed architecture:
+....................................................
+
+1.Scalablity:
+  Running more than one process, hosting the same app, Running the same app on multiple servers.
+
+Cluster:
+   When we scale apps into multiple servers, we neeed to group them under a single unit. Group of machines are called as "Cluster".
+
+2.High Avaiablity:
+  If any one server fails in the cluster, clients should not be affected, we need to make our app always available
+
+How to make highly available? 
+ via cluster.
+In kafka we can run "multiple broker"  as a cluster.
+
+Kafka clusters can be in the same machine or across network, or we can we many clusters too.
+.....................................................................................
+			  Cluster and Distributed architecture
+.....................................................................................
+
+1.Cluster Manager: 
+     Control Panel where cluster information is stored
+2.Broker
+     Data plane Where the user data/events are stored
+.....................................................................................
+			 Cluster Manager
+
+In any distribtued arch, if machines are running in a cluster or clusters, the cluster need to be managed.
+
+Who can manage cluster?
+  Cluster Manager
+
+Kafka and Cluster Manager:
+ Kafka is distribtued , runs in  a cluster, we need to manage that cluster.
+
+Kafka provides cluster:
+=>Zookeeper: It is distribtued cluster manager software.
+=>KRaft : It is new Cluster manager inside Kafka cluster.
+
+
+		"
+		   If you are running single broker or multiple brokers
+                        we need to have cluster manager
+		"
+
+Roles of Cluster Manager:
+
+1.To manage cluster meta data
+2.Failures dectections and recovery
+3.Storing ACL and secrets
+.....................................................................................
+
+Lab 2: How to setup Apache kafka cluster?
+..........................................
+
+Single Broker
+Single zookeeper
+
+Step 1:
+ Start zookeeper
+
+Note:
+ Before start any thing, we need to pass "respective configuration files" as a parameter.
+
+config$ ls
+ ls -l
+total 76
+-rw-r--r-- 1 subu subu  906 Sep 29 10:26 connect-console-sink.properties
+-rw-r--r-- 1 subu subu  909 Sep 29 10:26 connect-console-source.properties
+-rw-r--r-- 1 subu subu 5475 Sep 29 10:26 connect-distributed.properties
+-rw-r--r-- 1 subu subu  883 Sep 29 10:26 connect-file-sink.properties
+-rw-r--r-- 1 subu subu  881 Sep 29 10:26 connect-file-source.properties
+-rw-r--r-- 1 subu subu 2063 Sep 29 10:26 connect-log4j.properties
+-rw-r--r-- 1 subu subu 2540 Sep 29 10:26 connect-mirror-maker.properties
+-rw-r--r-- 1 subu subu 2262 Sep 29 10:26 connect-standalone.properties
+-rw-r--r-- 1 subu subu 1221 Sep 29 10:26 consumer.properties
+drwxr-xr-x 2 subu subu 4096 Sep 29 10:26 kraft
+-rw-r--r-- 1 subu subu 4917 Sep 29 10:26 log4j.properties
+-rw-r--r-- 1 subu subu 2065 Sep 29 10:26 producer.properties
+-rw-r--r-- 1 subu subu 6896 Sep 29 10:26 server.properties
+-rw-r--r-- 1 subu subu 1094 Sep 29 10:26 tools-log4j.properties
+-rw-r--r-- 1 subu subu 1169 Sep 29 10:26 trogdor.conf
+-rw-r--r-- 1 subu subu 1205 Sep 29 10:26 zookeeper.properties
+
+
+zookeeper.properties:
+
+dataDir=/tmp/zookeeper
+   The directory where the snaphot of cluster information is stored.
+
+clientPort=2181
+  The clients who connects zookeeper
+ The port at which client connects
+  Who is client, Kafka broker is client.
+
+
+Any server if you want to start we need to use "Script files"
+
+./bin/zookeeper-server-start.sh config/zookeeper.properties
+
+Step 2:
+....... 
+ After running zookeeper, we need to start kafka broker.
+
+In order to start kafka broker we need to supply server.properties
+
+Basic server.properties file properties:
+........................................
+
+
+# The id of the broker. This must be set to a unique integer for each broker.
+broker.id=0
+
+log.dirs=/tmp/kafka-logs
+  Kafka is logger system , means all data is stored into log file called commit log.
+log files are stored into tmp/kafka-logs.
+
+
+zookeeper.connect=localhost:2181
+# Zookeeper connection string (see zookeeper docs for details).
+# This is a comma separated host:port pairs, each corresponding to a zk
+# server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002".
+# You can also append an optional chroot string to the urls to specify the
+# root directory for all kafka znodes.
+
+./bin/kafka-server-start.sh config/server.properties
+
+
+Note:
+ Without zookeeper or kraft , we cant start broker.
+.....................................................................................
+			 Sending Messages(Events) to Broker
+.....................................................................................	
+				Topics
+....................................................................................
+
+What is Topic?
+  There are lot of events, we need to organize them in the system
+  Apache Kafka's most fundamental unit of organization is the topic.
+
+ Topic is just like table in the relational database.
+
+  As we discussed already, kafka just stores events in the log files.
+
+  We never write events into log file directly.
+
+  As a developer we caputure events, write them into "topic" , kafka writes into log file from the topic.
+
+  Topic is log of events, logs are easy to undestand
+
+ Topic is just simple data structure with well known semantics, they are append only.
+
+ When ever we write a message, it always goes on the end.
+
+ When you read message, from the logs, by "Seeking offset in the log".
+
+ Logs are fundamental durable things, Traditional Messaging systems have topics and queues which stores messages temporarily to buffer them between source and designation.
+
+ Since topics are logs, which always permenant.
+
+ You can delete directly log files not but not messages, but you purge messages.
+
+ You can store logs as short as to as long as years or even you can retain messages indefintely.
+.....................................................................................
+			    How to create topic
+.....................................................................................
+
+Actors in kafka:
+
+1.Producer
+    The producer is a program whose responsability to capture events, and send events to kafka broker.
+   The Producer will publish events into topic
+2.Consumer
+   The consumer is a program whose responsiability to read events from the topic..
+
+
+Producers and consumers can be any programming language which supports kafak integration.
+
+Producers can be a java program,nodejs,python,c#
+Consumers can be a java program,nodejs,python,c#...
+
+Kafka supports cli tools.
+.....................................................................................
+			kafka-topics.sh
+.....................................................................................
+
+This is a cli tool used to create,delete,describe, or update the topic.
+
+
+Explore how to use kafka tpics tool.
+
+ ./bin/kafka-topics.sh --help
+This tool helps to create, delete, describe, or change a topic.
+Option                                   Description
+------                                   -----------
+--alter                                  Alter the number of partitions and
+                                           replica assignment. Update the
+                                           configuration of an existing topic
+                                           via --alter is no longer supported
+                                           here (the kafka-configs CLI supports
+                                           altering topic configs with a --
+                                           bootstrap-server option).
+--at-min-isr-partitions                  if set when describing topics, only
+                                           show partitions whose isr count is
+                                           equal to the configured minimum.
+--bootstrap-server <String: server to    REQUIRED: The Kafka server to connect
+  connect to>                              to.
+--command-config <String: command        Property file containing configs to be
+  config property file>                    passed to Admin Client. This is used
+                                           only with --bootstrap-server option
+                                           for describing and altering broker
+                                           configs.
+--config <String: name=value>            A topic configuration override for the
+                                           topic being created or altered. The
+                                           following is a list of valid
+                                           configurations:
+                                                cleanup.policy
+                                                compression.type
+                                                delete.retention.ms
+                                                file.delete.delay.ms
+                                                flush.messages
+                                                flush.ms
+                                                follower.replication.throttled.
+                                           replicas
+                                                index.interval.bytes
+                                                leader.replication.throttled.replicas
+                                                local.retention.bytes
+                                                local.retention.ms
+                                                max.compaction.lag.ms
+                                                max.message.bytes
+                                                message.downconversion.enable
+                                                message.format.version
+                                                message.timestamp.after.max.ms
+                                                message.timestamp.before.max.ms
+                                                message.timestamp.difference.max.ms
+                                                message.timestamp.type
+                                                min.cleanable.dirty.ratio
+                                                min.compaction.lag.ms
+                                                min.insync.replicas
+                                                preallocate
+                                                remote.storage.enable
+                                                retention.bytes
+                                                retention.ms
+                                                segment.bytes
+                                                segment.index.bytes
+                                                segment.jitter.ms
+                                                segment.ms
+                                                unclean.leader.election.enable
+                                         See the Kafka documentation for full
+                                           details on the topic configs. It is
+                                           supported only in combination with --
+                                           create if --bootstrap-server option
+                                           is used (the kafka-configs CLI
+                                           supports altering topic configs with
+                                           a --bootstrap-server option).
+--create                                 Create a new topic.
+--delete                                 Delete a topic
+--delete-config <String: name>           A topic configuration override to be
+                                           removed for an existing topic (see
+                                           the list of configurations under the
+                                           --config option). Not supported with
+                                           the --bootstrap-server option.
+--describe                               List details for the given topics.
+--exclude-internal                       exclude internal topics when running
+                                           list or describe command. The
+                                           internal topics will be listed by
+                                           default
+--help                                   Print usage information.
+--if-exists                              if set when altering or deleting or
+                                           describing topics, the action will
+                                           only execute if the topic exists.
+--if-not-exists                          if set when creating topics, the
+                                           action will only execute if the
+                                           topic does not already exist.
+--list                                   List all available topics.
+--partitions <Integer: # of partitions>  The number of partitions for the topic
+                                           being created or altered (WARNING:
+                                           If partitions are increased for a
+                                           topic that has a key, the partition
+                                           logic or ordering of the messages
+                                           will be affected). If not supplied
+                                           for create, defaults to the cluster
+                                           default.
+--replica-assignment <String:            A list of manual partition-to-broker
+  broker_id_for_part1_replica1 :           assignments for the topic being
+  broker_id_for_part1_replica2 ,           created or altered.
+  broker_id_for_part2_replica1 :
+  broker_id_for_part2_replica2 , ...>
+--replication-factor <Integer:           The replication factor for each
+  replication factor>                      partition in the topic being
+                                           created. If not supplied, defaults
+                                           to the cluster default.
+--topic <String: topic>                  The topic to create, alter, describe
+                                           or delete. It also accepts a regular
+                                           expression, except for --create
+                                           option. Put topic name in double
+                                           quotes and use the '\' prefix to
+                                           escape regular expression symbols; e.
+                                           g. "test\.topic".
+--topic-id <String: topic-id>            The topic-id to describe.This is used
+                                           only with --bootstrap-server option
+                                           for describing topics.
+--topics-with-overrides                  if set when describing topics, only
+                                           show topics that have overridden
+                                           configs
+--unavailable-partitions                 if set when describing topics, only
+                                           show partitions whose leader is not
+                                           available
+--under-min-isr-partitions               if set when describing topics, only
+                                           show partitions whose isr count is
+                                           less than the configured minimum.
+--under-replicated-partitions            if set when describing topics, only
+                                           show under replicated partitions
+--version                                Display Kafka version.
+
+
+Lab 3: How to create topic?
+
+./bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic todos-topic
+Created topic todos-topic.
+
+After creating topic you can explore, log file location.
+
+/tmp/kafka-logs/
+      |
+      todos-topic-0
+
+ When you create topic, which is represented inside disk as "folder" 
+
+todos-topic-0
+   |        |
+topicName  partition id
+..................................................................................... 
+		    How to describe/look at the structure of topic
+.....................................................................................
+
+--describe --topic todos-topic
+
+./bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic todos-topic
+
+Topic: todos-topic      TopicId: EZUOtzruROmOe03We-kXdg PartitionCount: 1       ReplicationFactor: 1
+Configs:
+  Topic: todos-topic      Partition: 0    Leader: 0       Replicas: 0     Isr: 0
+
+....................................................................................
+		          How to delete topic
+
+--delete --topic todos-topics
+
+/bin/kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic todos-topic
+
+After delete command is executed,
+
+Kafka will rename the topic , that means it marks for deletion.
+Kafka will not delete, immediatly,
+It takes few ms to delete.
+....................................................................................
+		       How to list topics
+.....................................................................................
+./bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+todos-topic
+
+Note: 
+Kafka maintains internal topics, topics which are created by kafka for various use cases.
+
+ ./bin/kafka-topics.sh --bootstrap-server localhost:9092 --list --exclude-internal
+todos-topic
+
+You can filter topics listing by using many other options.
+
+for eg:
+ ./bin/kafka-topics.sh --bootstrap-server localhost:9092 --list --exclude-internal --unavailable-partitions
+.....................................................................................
+	 How to publish message or events/records into Kafka Topic
+....................................................................................
+
+In order to publish message/event/record , we need publisher /producer who can be any program, we are going to use cli to publish message.
+
+kafka-console-producer.sh
+./bin/kafka-console-producer.sh --help
+This tool helps to read data from standard input and publish it to Kafka.
+Option                                   Description
+------                                   -----------
+--batch-size <Integer: size>             Number of messages to send in a single
+                                           batch if they are not being sent
+                                           synchronously. please note that this
+                                           option will be replaced if max-
+                                           partition-memory-bytes is also set
+                                           (default: 16384)
+--bootstrap-server <String: server to    REQUIRED unless --broker-list
+  connect to>                              (deprecated) is specified. The server
+                                           (s) to connect to. The broker list
+                                           string in the form HOST1:PORT1,HOST2:
+                                           PORT2.
+--broker-list <String: broker-list>      DEPRECATED, use --bootstrap-server
+                                           instead; ignored if --bootstrap-
+                                           server is specified.  The broker
+                                           list string in the form HOST1:PORT1,
+                                           HOST2:PORT2.
+--compression-codec [String:             The compression codec: either 'none',
+  compression-codec]                       'gzip', 'snappy', 'lz4', or 'zstd'.
+                                           If specified without value, then it
+                                           defaults to 'gzip'
+--help                                   Print usage information.
+--line-reader <String: reader_class>     The class name of the class to use for
+                                           reading lines from standard in. By
+                                           default each line is read as a
+                                           separate message. (default: kafka.
+                                           tools.
+                                           ConsoleProducer$LineMessageReader)
+--max-block-ms <Long: max block on       The max time that the producer will
+  send>                                    block for during a send request.
+                                           (default: 60000)
+--max-memory-bytes <Long: total memory   The total memory used by the producer
+  in bytes>                                to buffer records waiting to be sent
+                                           to the server. This is the option to
+                                           control `buffer.memory` in producer
+                                           configs. (default: 33554432)
+--max-partition-memory-bytes <Integer:   The buffer size allocated for a
+  memory in bytes per partition>           partition. When records are received
+                                           which are smaller than this size the
+                                           producer will attempt to
+                                           optimistically group them together
+                                           until this size is reached. This is
+                                           the option to control `batch.size`
+                                           in producer configs. (default: 16384)
+--message-send-max-retries <Integer>     Brokers can fail receiving the message
+                                           for multiple reasons, and being
+                                           unavailable transiently is just one
+                                           of them. This property specifies the
+                                           number of retries before the
+                                           producer give up and drop this
+                                           message. This is the option to
+                                           control `retries` in producer
+                                           configs. (default: 3)
+--metadata-expiry-ms <Long: metadata     The period of time in milliseconds
+  expiration interval>                     after which we force a refresh of
+                                           metadata even if we haven't seen any
+                                           leadership changes. This is the
+                                           option to control `metadata.max.age.
+                                           ms` in producer configs. (default:
+                                           300000)
+--producer-property <String:             A mechanism to pass user-defined
+  producer_prop>                           properties in the form key=value to
+                                           the producer.
+--producer.config <String: config file>  Producer config properties file. Note
+                                           that [producer-property] takes
+                                           precedence over this config.
+--property <String: prop>                A mechanism to pass user-defined
+                                           properties in the form key=value to
+                                           the message reader. This allows
+                                           custom configuration for a user-
+                                           defined message reader.
+                                         Default properties include:
+                                          parse.key=false
+                                          parse.headers=false
+                                          ignore.error=false
+                                          key.separator=\t
+                                          headers.delimiter=\t
+                                          headers.separator=,
+                                          headers.key.separator=:
+                                          null.marker=   When set, any fields
+                                           (key, value and headers) equal to
+                                           this will be replaced by null
+                                         Default parsing pattern when:
+                                          parse.headers=true and parse.key=true:
+                                           "h1:v1,h2:v2...\tkey\tvalue"
+                                          parse.key=true:
+                                           "key\tvalue"
+                                          parse.headers=true:
+                                           "h1:v1,h2:v2...\tvalue"
+--reader-config <String: config file>    Config properties file for the message
+                                           reader. Note that [property] takes
+                                           precedence over this config.
+--request-required-acks <String:         The required `acks` of the producer
+  request required acks>                   requests (default: -1)
+--request-timeout-ms <Integer: request   The ack timeout of the producer
+  timeout ms>                              requests. Value must be non-negative
+                                           and non-zero. (default: 1500)
+--retry-backoff-ms <Long>                Before each retry, the producer
+                                           refreshes the metadata of relevant
+                                           topics. Since leader election takes
+                                           a bit of time, this property
+                                           specifies the amount of time that
+                                           the producer waits before refreshing
+                                           the metadata. This is the option to
+                                           control `retry.backoff.ms` in
+                                           producer configs. (default: 100)
+--socket-buffer-size <Integer: size>     The size of the tcp RECV size. This is
+                                           the option to control `send.buffer.
+                                           bytes` in producer configs.
+                                           (default: 102400)
+--sync                                   If set message send requests to the
+                                           brokers are synchronously, one at a
+                                           time as they arrive.
+--timeout <Long: timeout_ms>             If set and the producer is running in
+                                           asynchronous mode, this gives the
+                                           maximum amount of time a message
+                                           will queue awaiting sufficient batch
+                                           size. The value is given in ms. This
+                                           is the option to control `linger.ms`
+                                           in producer configs. (default: 1000)
+--topic <String: topic>                  REQUIRED: The topic id to produce
+                                           messages to.
+
+.....................................................................................
+
+How to publish events into topic?
+./bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic todos-topic
+>Learn Kafka
+>Learn Event Driven Architecture
+>Learn kafka streams
+>Learn Kafka connectors
+.....................................................................................
+			Consumers
+.....................................................................................
+
+Consumers are going to read data from the topics.
+
+Steps:
+=>Find a topic name eg todos-topic
+=>Find a host name and port eg localhost:9092
+=>if you read future message(Current message being published)
+=>if you want to read histical message, from the begining...
+
+./bin/kafka-console-consumer.sh --help
+This tool helps to read data from Kafka topics and outputs it to standard output.
+Option                                   Description
+------                                   -----------
+--bootstrap-server <String: server to    REQUIRED: The server(s) to connect to.
+  connect to>
+--consumer-property <String:             A mechanism to pass user-defined
+  consumer_prop>                           properties in the form key=value to
+                                           the consumer.
+--consumer.config <String: config file>  Consumer config properties file. Note
+                                           that [consumer-property] takes
+                                           precedence over this config.
+--enable-systest-events                  Log lifecycle events of the consumer
+                                           in addition to logging consumed
+                                           messages. (This is specific for
+                                           system tests.)
+--formatter <String: class>              The name of a class to use for
+                                           formatting kafka messages for
+                                           display. (default: kafka.tools.
+                                           DefaultMessageFormatter)
+--formatter-config <String: config       Config properties file to initialize
+  file>                                    the message formatter. Note that
+                                           [property] takes precedence over
+                                           this config.
+--from-beginning                         If the consumer does not already have
+                                           an established offset to consume
+                                           from, start with the earliest
+                                           message present in the log rather
+                                           than the latest message.
+--group <String: consumer group id>      The consumer group id of the consumer.
+--help                                   Print usage information.
+--include <String: Java regex (String)>  Regular expression specifying list of
+                                           topics to include for consumption.
+--isolation-level <String>               Set to read_committed in order to
+                                           filter out transactional messages
+                                           which are not committed. Set to
+                                           read_uncommitted to read all
+                                           messages. (default: read_uncommitted)
+--key-deserializer <String:
+  deserializer for key>
+--max-messages <Integer: num_messages>   The maximum number of messages to
+                                           consume before exiting. If not set,
+                                           consumption is continual.
+--offset <String: consume offset>        The offset to consume from (a non-
+                                           negative number), or 'earliest'
+                                           which means from beginning, or
+                                           'latest' which means from end
+                                           (default: latest)
+--partition <Integer: partition>         The partition to consume from.
+                                           Consumption starts from the end of
+                                           the partition unless '--offset' is
+                                           specified.
+--property <String: prop>                The properties to initialize the
+                                           message formatter. Default
+                                           properties include:
+                                          print.timestamp=true|false
+                                          print.key=true|false
+                                          print.offset=true|false
+                                          print.partition=true|false
+                                          print.headers=true|false
+                                          print.value=true|false
+                                          key.separator=<key.separator>
+                                          line.separator=<line.separator>
+                                          headers.separator=<line.separator>
+                                          null.literal=<null.literal>
+                                          key.deserializer=<key.deserializer>
+                                          value.deserializer=<value.
+                                           deserializer>
+                                          header.deserializer=<header.
+                                           deserializer>
+                                         Users can also pass in customized
+                                           properties for their formatter; more
+                                           specifically, users can pass in
+                                           properties keyed with 'key.
+                                           deserializer.', 'value.
+                                           deserializer.' and 'headers.
+                                           deserializer.' prefixes to configure
+                                           their deserializers.
+--skip-message-on-error                  If there is an error when processing a
+                                           message, skip it instead of halt.
+--timeout-ms <Integer: timeout_ms>       If specified, exit if no message is
+                                           available for consumption for the
+                                           specified interval.
+--topic <String: topic>                  The topic to consume on.
+--value-deserializer <String:
+  deserializer for values>
+--version                                Display Kafka version.
+--whitelist <String: Java regex          DEPRECATED, use --include instead;
+  (String)>                                ignored if --include specified.
+                                           Regular expression specifying list
+                                           of topics to include for consumption.
+
+
+Use case : current message:
+ ./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic todos-topic
+
+After starting consumer, you need to publsh message , using producer...
+./bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic todos-topic
+>Hello
+>Hai
+
+ ./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic todos-topic
+Hello
+Hai
+
+What if i want to display all messages ? Histrical messages and current message
+
+
+./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic todos-topic --from-beginning
+Learn Kafka
+Learn Event Driven Architecture
+Learn kafka streams
+Learn Kafka connectors
+Hello
+Hai
+Welcome
+.....................................................................................
+				Activity
+
+1.Create topic
+2.publish event
+3.Consume events
+.....................................................................................
+	  Before publishing event via producer should i need to create topic
+...............................................................................
+
+Yes, we need topic.
+
+Topic creations:
+
+1.Topic can be created using "kafka-topics.sh" tool.
+   This would be good when we know the topic name in advance.
+2.Topic can be created automatically by producers.
+    There would be use case where the programs (publisher) can create topic.
+ if you are java developer, from java you can create topic when java program act as publisher.
+ 
+Topics are automatically created by publishers.
+
+server.properties:
+  topic configuration
+
+auto.create.topics.enable=true
+num.partitions=1
+default.replication.factor=1
+
+Note: by default this configuration is supplied
+
+Topic creations and publish events by producer:
+...............................................
+
+./bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic orders
+>order placed
+[2023-11-14 17:17:32,763] WARN [Producer clientId=console-producer] Error while fetching metadata with correlation id 5 : {orders=LEADER_NOT_AVAILABLE} (org.apache.kafka.clients.NetworkClient)
+>order reserved
+>order pending
+>order cancelled
+>
+
+Consumer
+ ./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic orders --from-beginning
+order placed
+order reserved
+order pending
+order cancelled
+....................................................................................
+				Consumer Basic properties
+....................................................................................
+
+Property options will give meta or detailed information about messages and topics
+
+--property <String:pro>
+
+Time Stamp Property:
+...................
+  It is property used to know when event was published.
+
+--property <String: prop>                The properties to initialize the
+                                           message formatter. Default
+                                           properties include:
+                                          print.timestamp=true|false
+                                          print.key=true|false
+                                          print.offset=true|false
+                                          print.partition=true|false
+                                          print.headers=true|false
+                                          print.value=true|false
+                                          key.separator=<key.separator>
+                                          line.separator=<line.separator>
+                                          headers.separator=<line.separator>
+                                          null.literal=<null.literal>
+                                          key.deserializer=<key.deserializer>
+                                          value.deserializer=<value.
+                                           deserializer>
+                                          header.deserializer=<header.
+                                           deserializer>
+.....................................................................................
+			 Partitions
+.....................................................................................
+As we discussed already, topic is just reprentation of folder and collection of files.
+When you create a topic, it is created folder  "topicname-0"
+
+if a topic were constrained to live entirely on one machine,that would place a pretty radical limit on the ability of kafka to scale.
+It could manage many topics across many machines- Kafka is a distributed system, after all - but no one topic could ever get too big or asipir to accomadate too many reads and writes.
+
+Fortunately, kafka does not leave us withouts options here, it gives us the ability to partition topics
+
+Partitions means breaking topic into multiple folders and files.
+
+Partition takes single topic log and breaks it into multiple logs, each of which can live on separate node in the kafka cluster.
+
+This way , the work of storing messages, writing new messaging and processing existing messages can be splilt among many nodes in the cluster.
+
+Every partition is just folder, Each folder has its own log file..
+.....................................................................................
+			  
+		          payment-topic
+				|
+			---------------------------------------
+			|       |                |
+               payment-topic-0 payement-topic-1 paytment-topic-2	
+                   |                |              |
+              log files         log files        log files
+
+
+By default every topic has single partition.
+.....................................................................................
+			 Creating topic with multiple partitions
+.....................................................................................
+./bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic payment --partitions 3
+Created topic payment.
+
+After creating partitions, you can see inside kafka log folder. /tmp/kafka-logs
+
+ /tmp/kafka-logs
+         |
+         payment-0  - 0 is partition no
+         payment-1  - 1 is partition no
+         payment-2  - 2 is partition no
+
+Describe topic with partitions
+ ./bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic payment
+Topic: payment  TopicId: OR-yFkp4RTu_dn1o64wEuw PartitionCount: 3       ReplicationFactor: 1    Configs:
+        Topic: payment  Partition: 0    Leader: 0       Replicas: 0     Isr: 0
+        Topic: payment  Partition: 1    Leader: 0       Replicas: 0     Isr: 0
+        Topic: payment  Partition: 2    Leader: 0       Replicas: 0     Isr: 0
+
+Why Partitions?
+  Partitions helps to distribute messages into multiple log files so that we dont need to dump into one single log file, we can scale the events across multiple files.
+			
+                    "Partitions help unit of parallelism"
+.....................................................................................
+			    Segments
+....................................................................................
+What is segment?
+  Segement is just actual log file containing "Records".
+  Record is just "Message/Event". Record is term used by kafka to represent incomming message.
+  In kafka data is written into file system,  data is called "record" which has some structure, that will explore soon.
+ 
+ Segment is nothing file, called log file.
+
+Exploring log files:
+
+:/tmp/kafka-logs/payment-0$ ls -l
+total 8
+-rw-r--r-- 1 subu subu 10485760 Nov 15 14:44 00000000000000000000.index
+-rw-r--r-- 1 subu subu        0 Nov 15 14:44 00000000000000000000.log
+-rw-r--r-- 1 subu subu 10485756 Nov 15 14:44 00000000000000000000.timeindex
+-rw-r--r-- 1 subu subu        8 Nov 15 14:44 leader-epoch-checkpoint
+-rw-r--r-- 1 subu subu       43 Nov 15 14:44 partition.metadata 
+
+
+Here segment is group of files
+
+.log
+.index
+.timeindex
+
+00000000000000000000 -name of the file.
+
+This file contains messages called records.
+
+Records are stored as "Byte Array"
+
+00000000000000000000.log => This is the file which stores actual log messages(records)
+.....................................................................................
+			 Segment File or Log File Architecture
+.....................................................................................
+How events or data or message or record is stored into segment.
+
+Actual Log file is structured with two parts
+
+1.Actual data - event
+2.Offset
+ 
+As we discussed event is published into segement as "record" which is simply byte array.
+
+offset:
+  An , offset into a file is simply character location within that file, usually starting with 0; thus offset "240" is actually the 241 th byte in the file
+
+
+  (Byte array)
+  a  b  c  d e f g -------------------Actual Record
+ ..........................
+  0  1  2  3 4 5 6 ------------------>Offset
+
+When ever you publish event into topic, into partition, and into segment event to be inserted along with offset no, which is calculated by finding last offset no and increment by 1 and insert new data with offset no.
+.....................................................................................
+			Partion and multple segments(logfiles)
+.....................................................................................
+
+By default every partition , will have single log file, but we can have more segements (log files).
+
+Multiple log files inside single folder(partition)
+
+filesNames:
+
+partion-0
+   |
+  0000000000000000000000000000.log - segment-0
+  0000000000000000000000000001.log - segment-1
+  0000000000000000000000000002.log - segement-2
+
+Since we have many log files, which log file can get data for write operation.
+
+		"Active Segement"  only gets data
+
+How many segment files we can have for a partition?
+
+ There is no limit of "segement files".
+
+Segments are created based on two factors:
+
+1.Size 
+2.Time
+
+The segment size(file size) is determined by the proprty
+
+log.segement.bytes
+     The maximum size of a single log file.
+     When it reaches, kafka will create new one.
+     default is 1 gb
+
+Time:
+ log.segement.ms
+   The Kafka will wait before creating new file based on time.
+   default is 1 week.
+
+Either one is statisfied , new log file is created.
+
+How to represent multiple segment files and how messages are published into a active segment?
+
+segment-0             segment-1       Segment-2
+offset o to 1006     1007 to 2000     2001 to ongoing		 
+.....................................................................................
+
+Lab:
+ Multiple segement files (log files)
+
+server.properties.
+
+# The maximum size of a log segment file. When this size is reached a new log segment will be created.
+#log.segment.bytes=1073741824
+
+Steps:
+1.configure the server.properites
+log.segment.bytes=1000
+2.publish messages until it reaches 1000 bytes
+3.look into kafka log file location.
+
+publish events 
+/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic sales
+>2323ljjlskjlkdjfa;lkfjdsalkfasjf
+>asdfasdf
+>adsfasfasfas
+>adfasdfasfdasf
+>afasfasfsaf
+>dfldskfsa;lfjsadlkfjsadflkasdfj
+>lasdkjfa;lkdsfja;dslkfjads;lkfjsafl;k
+>l;akdjflaskfjas;lkfjsa
+>;ladkjfa;lksfjsad;lfkdsajf
+>;lakjdsf;laskjfsa;lfkj
+>rsfsdfsdlkfjdslkfdsjf
+>;lkajdflksajfsa
+>f;aldskfjas;lkfjdsaf
+>;lakdjf;alkfja;dlfkjsa
+>l;adjfa;lskfjsa;lfkjdsaf
+
+
+sales-0$ ls -l
+total 24
+-rw-r--r-- 1 subu subu        0 Nov 15 16:25 00000000000000000000.index
+-rw-r--r-- 1 subu subu      984 Nov 15 16:25 00000000000000000000.log
+-rw-r--r-- 1 subu subu       12 Nov 15 16:25 00000000000000000000.timeindex
+-rw-r--r-- 1 subu subu 10485760 Nov 15 16:25 00000000000000000011.index
+-rw-r--r-- 1 subu subu      353 Nov 15 16:25 00000000000000000011.log
+-rw-r--r-- 1 subu subu       56 Nov 15 16:25 00000000000000000011.snapshot
+-rw-r--r-- 1 subu subu 10485756 Nov 15 16:25 00000000000000000011.timeindex
+-rw-r--r-- 1 subu subu        8 Nov 15 16:23 leader-epoch-checkpoint
+-rw-r--r-- 1 subu subu       43 Nov 15 16:23 partition.metadata
+
+Your task:
+ Try with  log.segement.ms
+.....................................................................................
+			How to inspect the internals of log file
+				 (Dump log)
+.....................................................................................
+
+Some times when you are working with Kafka, you many find yourself needing to manually inspect underlying logs of a topics.
+
+Whether you are just curious about kafka internals, or you need to debug an issue and verify the content, the kafka-dump-log command is your friend.
+
+
+kafka-dump.log.sh
+
+Lab:
+ Verify the internal structure of "Segment" file.
+
+$ ./bin/kafka-dump-log.sh --print-data-log --files /../tmp/kafka-logs/sales-0/00000000000000000000.log
+Dumping /../tmp/kafka-logs/sales-0/00000000000000000000.log
+Log starting offset: 0
+baseOffset: 0 lastOffset: 0 count: 1 baseSequence: 0 lastSequence: 0 producerId: 2000 producerEpoch: 0 partitionLeaderEpoch: 0 isTransactional: false isControl: false deleteHorizonMs: OptionalLong.empty position: 0 CreateTime: 1700045725504 size: 100 magic: 2 compresscodec: none crc: 2082850056 isvalid: true
+| offset: 0 CreateTime: 1700045725504 keySize: -1 valueSize: 32 sequence: 0 headerKeys: [] payload: 2323ljjlskjlkdjfa;lkfjdsalkfasjf
+baseOffset: 1 lastOffset: 1 count: 1 baseSequence: 1 lastSequence: 1 producerId: 2000 producerEpoch: 0 partitionLeaderEpoch: 0 isTransactional: false isControl: false deleteHorizonMs: OptionalLong.empty position: 100 CreateTime: 1700045726634 size: 76 magic: 2 compresscodec: none crc: 4005214925 isvalid: true
+| offset: 1 CreateTime: 1700045726634 keySize: -1 valueSize: 8 sequence: 1 headerKeys: [] payload: asdfasdf
+baseOffset: 2 lastOffset: 2 count: 1 baseSequence: 2 lastSequence: 2 producerId: 2000 producerEpoch: 0 partitionLeaderEpoch: 0 isTransactional: false isControl: false deleteHorizonMs: OptionalLong.empty position: 176 CreateTime: 1700045727906 size: 80 magic: 2 compresscodec: none crc: 1139443005 isvalid: true
+
+
+./bin/kafka-dump-log.sh --print-data-log --files /../tmp/kafka-logs/sales-0/00000000000000000011.log
+Dumping /../tmp/kafka-logs/sales-0/00000000000000000011.log
+Log starting offset: 11
+baseOffset: 11 lastOffset: 11 count: 1 baseSequence: 11 lastSequence: 11 producerId: 2000 producerEpoch: 0 partitionLeaderEpoch: 0 isTransactional: false isControl: false deleteHorizonMs: OptionalLong.empty position: 0 CreateTime: 1700045747438 size: 83 magic: 2 compresscodec: none crc: 4285636970 isvalid: true
+
+....................................................................................
+			   index files
+....................................................................................
+
+.index
+   Contains the mappings of "offset" to its position in ".log" file
+.timeindex
+   file contains the mappings of "Timestamp" to message offset.
+
+Records(messages or events) are searched by consumers based these index files only.
+
+....................................................................................
+			 Consumers and offsets
+...................................................................................
+
+Consumers can read records from the "segement" based on offset only.
+
+Consumers can read records
+
+1.from the begining - -0th offset
+2.from the active position - from the current offset
+3.based on explicit offset no.
+
+Note:
+ if you read record based on offset,you must supply partition option.
+
+ ./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic orders --offset 2
+--partition 0
+order pending
+order cancelled
+^CProcessed a total of 2 messages
+.....................................................................................
+		  Records(Events/Messages) distributions and partitions
+....................................................................................
+
+Topics are broken into partitions, partitions are broken into segements.
+
+As a Producer, we send data to the topic only,Topic only distributes messages among partitions.
+
+
+Partitioner:
+  Partitioner is a process/algorthim that will determine to which partition  a particular message/event/record will be assigned.
+
+	"In Nutshell Partitioner is simple java progra/class Having 
+		Routing algorthim"
+		 
+                "That algorthim only decides where to go"
+		 
+For eg, i have a topic , having 3 partitions
+
+Record----->publish------Partitioner------Where to go ---PO or P1 or P2
+
+Record contains information for how to select partition...
+
+
+Partitioner Algorthims:
+......................
+
+1.Round Robin
+2.Stick Partitioner 
+3.Key based Partitioner
+
+1.Round Robin:
+..............
+  It is default algorthim used in kafka older versions less than 2.3
+
+Lets assume i have two partitions
+
+M1--->P1
+M2---->P2
+M3--->P1
+M4--->P2
+
+In round robin, messages are distributed equally to all partitions.
+
+Drawbacks of Round robin:
+
+Lets assume that , you have sensor device which is polling events every ms , kafka receives that event via network ,and stores into partitions.
+
+if you do so, if more messages and more partitions, it creates the highest latency and low performance.
+
+After 2.3 kafka introduced new concept called "Batching"
+........................................................
+instead of sending every record over network, we can accumulate records , make it as batch.
+
+2.Sticky Partitioner Algorthim:
+...............................
+=>It is built on the top of Round robin only.
+=>Sticky partitioner wont send a single record/event/message rather it send as a batch.
+=>It improves the performance,reduces network latency.
+=>This is default partitioner in the latest kakfa
+
+Sticky = {Round Robin + Batching}
+
+3.Key based partitioner Alogorthim.
+
+Before deep divide , we need to understand, Message structure.
+
+In Kafka Messages(Records/Events) are organized based on "key-value" pair.
+
+Can we know that record has key?
+Yes
+
+Lab:
+ How to print key of Record...
+
+./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic orders --from-beginning --property print.key=true
+null    order placed
+null    order reserved
+null    order pending
+null    order cancelled
+
+--property print.key=true which prints key  and value.
+
+Here order placed is value
+null is key.
+
+By default message/event has key whether you are giving or not, if you dont give any key then key would be "null".
+
+              if any message/event/record is distributed with null key , then
+			 "Sticky partitioner would be used".
+
+Lab: Knowing how stickpartiionare are used
+ Create topic with 2 partitions
+ Distribute message with 'null' key - without key
+ watch in consumer side keys and partitions.
+
+/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic product  2
+--partitions 2
+Created topic product.
+
+Start two command prompt for producer:
+ ./bin/kafka-console-producer.sh --bootstrap-server  localhost:9092 --topic product
+ ./bin/kafka-console-producer.sh --bootstrap-server  localhost:9092 --topic product
+
+Start  consumer:
+/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic product  --from-beginning --property print.key=true --property print.partition=true
+Partition:1     null    phone
+Partition:1     null    book
+Partition:1     null    kd;fjlkdsafjsa
+Partition:0     null    hello
+Partition:0     null    computer
+Partition:1     null    food
+Partition:0     null    test
+Partition:1     null    heee
+Partition:1     null    kjflakdsf
+Partition:0     null    hess
+.....................................................................................
+			 Key based Distribution
+.....................................................................................
+We can supply key, based on key messages/events can be distributed.
+
+How key-value pair messages are distributed among partions?
+
+Kafka uses an alogrthim called "key Hashing algorthim".
+
+Key hashing is the process of determing the mapping of a key to a partition in the default partitioner.
+
+The keys are hashed based on an alogorthim called "murmur2"
+ 
+  TargetPartition= Math.abs(Util.murmur2(keyInBytes) % (numofPartitions-1)
+
+Note:
+ if you have same key, but different values, the same partition will be used
+
+Lab:
+=>create topic with 2 partions
+=>Publish message with key
+=>Consume message...
+
+ ./bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic user  2 --p
+artitions 2
+Created topic user.
+
+./bin/kafka-console-producer.sh --bootstrap-server  localhost:9092 --topic user --property "key.separator=:" --property "parse.key=true"
+>1:subramanian
+>2:ram
+>3:karthik
+>abc:foo
+>78:bar
+>45:89
+
+Consumer:
+./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic user  --fr
+om-beginning --property print.key=true --property print.partition=true
+
+Partition:1     1       subramanian
+Partition:0     2       ram
+Partition:1     3       karthik
+Partition:1     abc     foo
+Partition:1     78      bar
+Partition:0     45      89
+.....................................................................................
+			 Kafka Log Rentention and Cleanup Policies
+...................................................................................
+
+What is log rention?
+	The policy can be set to delete segments after a period of time, or after a given size has accumulated.
+	A segment will be deleted whenever *either* of these criteria are met. Deletion always happens from the end of the log.
+
+The following configurations control the disposal of log segments.
+
+
+# The minimum age of a log file to be eligible for deletion due to age
+log.retention.hours=168
+log.retention.minutes=10
+log.retention.ms=1000
+
+# A size-based retention policy for logs. Segments are pruned from the log unless the remaining
+# segments drop below log.retention.bytes. Functions independently of log.retention.hours.
+#log.retention.bytes=1073741824
+
+if you mention this policy in server.properties, it is applied for all log files.....
+.....................................................................................
+				
+Deletion policy set  for entire broker - server.properties.
+Delete policy can be set for particular topic - during topic creation you can supply that property.
+
+Lab:
+ Create topic with Retension policy.
+
+Topic creation:
+./bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic hello --config retention.ms=20000
+
+Start publishing and consuming:
+
+
+ ./bin/kafka-console-producer.sh --bootstrap-server  localhost:9092 --topic hello
+>Hello
+>hai
+>welcome
+>how are you
+>test
+>h
+>jadf
+>klsdlfkjsadfl
+>klasdjflkdsafjadsfk
+>lkasdjfslkdfjsadkfjsadf;klsajfsa;lkfjsa
+>sdfsadfsadf
+>adsfasdfasdf
+>adfadsfasdf
+>adsfdsfadsf
+
+./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic hello  --f
+rom-beginning --property print.key=true --property print.partition=true
+Partition:0     null    Hello
+Partition:0     null    hai
+Partition:0     null    welcome
+Partition:0     null    how are you
+Partition:0     null    test
+Partition:0     null    h
+Partition:0     null    jadf
+Partition:0     null    klsdlfkjsadfl
+Partition:0     null    klasdjflkdsafjadsfk
+Partition:0     null    lkasdjfslkdfjsadkfjsadf;klsajfsa;lkfjsa
+Partition:0     null    sdfsadfsadf
+Partition:0     null    adsfasdfasdf
+Partition:0     null    adfadsfasdf
+Partition:0     null    adsfdsfadsf
+
+After 2mins you can watch that file getting deleted and new logfile is beging created.
+
+Server log which shows how , log entry is getting deleted.
+..........................................................
+
+kafka.storage.internals.log.ProducerStateManager)
+[2023-11-16 15:26:10,021] INFO [UnifiedLog partition=hello-0, dir=/tmp/kafka-logs] Deleting segment LogSegment(baseOffset=0, size=1103, lastModifiedTime=1700128531602, largestRecordTimestamp=Some(1700128530607)) due to log retention time 20000ms breach based on the largest record timestamp in the segment (kafka.log.UnifiedLog)
+[2023-11-16 15:26:10,023] INFO [UnifiedLog partition=hello-0, dir=/tmp/kafka-logs] Incremented log start offset to 14 due to segment deletion (kafka.log.UnifiedLog)
+[2023-11-16 15:27:10,022] INFO [LocalLog partition=hello-0, dir=/tmp/kafka-logs] Deleting segment files LogSegment(baseOffset=0, size=1103, lastModifiedTime=1700128531602, largestRecordTimestamp=Some(1700128530607)) (kafka.log.LocalLog$)
+[2023-11-16 15:27:10,024] INFO Deleted log /tmp/kafka-logs/hello-0/00000000000000000000.log.deleted. (kafka.log.LogSegment)
+[2023-11-16 15:27:10,026] INFO Deleted offset index /tmp/kafka-logs/hello-0/00000000000000000000.index.deleted. (kafka.log.LogSegment)
+[2023-11-16 15:27:10,026] INFO Deleted time index /tmp/kafka-logs/hello-0/00000000000000000000.timeindex.deleted. (kafka.log.LogSegment)
+[2023-11-16 15:27:24,352] INFO [GroupCoordinator 0]: Preparing to rebalance group console-consumer-55082 in state PreparingRebalance with old generating.
+....................................................................................
+				Kafka runtime configurations
+.....................................................................................
+
+Once the topic is created,later if we want to apply dynamic configurations without server restart eg , setting new retension policy for a topic.
+
+kafka-config.sh utility can be used for dynamic configuration.
+
+entity:
+ It is object which represents topic,user, client,broker etc...
+if you want to change any configuration for entity this command can be used.
+
+entity-type =broker,topic,user
+
+Broker Level Configuration eg:
+
+//adding or editing existing broker configuration.
+
+./bin/kafka-configs.sh --bootstrap-server localhost:9092 --alter --entity-type brokers entity-default --add-config min.insync.replicas=2
+
+In java
+ KafkaConfig config=new KafkaConfig()
+ config.setProperty('min.insync.replicas')
+
+if you delete:
+
+./bin/kafka-configs.sh --bootstrap-server localhost:9092 --alter --entity-type brokers entity-default --delete-config min.insync.replicas=2
+
+
+Topics:
+./bin/kafka-configs.sh --bootstrap-server localhost:9092 
+     --alter --entity-type topics --entity-name test --add-config max.message.bytes=1000
+
+Lab:
+ Alter topic with Rention policy:
+
+Steps:
+
+1.create topic with default settings
+
+./bin/kafka-topics.sh --bootstrp-server localhost:9092 --create --topic greet
+Created topic greet.
+
+2.Describe topic.
+./bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic greet
+Topic: greet    TopicId: YkRC3sYIS0SOfbnJc-ymog PartitionCount: 1       ReplicationFactor: 1    
+Configs:
+Topic: greet    Partition: 0    Leader: 0       Replicas: 0     Isr: 0
+
+
+2.Alter topic configuration like retention policy.
+ ./bin/kafka-configs.sh --bootstrap-server localhost:9092 --alter --entity-type topics --entity-name greet --add-config retention.ms=20000
+
+3.subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ./bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic greet
+
+Topic: greet    TopicId: YkRC3sYIS0SOfbnJc-ymog PartitionCount: 1       ReplicationFactor: 1    Configs: retention.ms=20000
+        Topic: greet    Partition: 0    Leader: 0       Replicas: 0     Isr: 0
+.....................................................................................
+		How to setup kafka with KRaft Mode
+.....................................................................................
+
+Initally we will see how to setup with single node.
+
+Lab:
+ Start Kafka in kraft mode.
+
+
+Type of Broker:
+1.controller - Broker which manages meta data,leader election,notification of to brokers
+2.broker - Data plane - Talk to producers and consumers and replicate data to followers
+
+3.Controller and broker - does both job.
+
+Node
+ A node can act as both controller and broker..
+
+In order to start kafka in kraft mode, we have special configuration files for server
+
+in zookeeper mode we start server using config/server.properties
+
+In Kraft mode, we start config/kraft/
+
+broker.properties -  only broker
+controller.properties -  only controller
+server.properties  -both controller and broker..
+
+Setup Kafka in kraft mode:
+..........................
+
+1.Generate a Cluster ID:
+
+Before generating cluter id, we need to know, how to use kafka-storage.sh utiltity.
+
+./bin/kafka-storage.sh --help
+usage: kafka-storage [-h] {info,format,random-uuid} ...
+
+The Kafka storage tool.
+
+positional arguments:
+  {info,format,random-uuid}
+    info                 Get information about the Kafka log directories on this node.
+    format               Format the Kafka log directories on this node.
+    random-uuid          Print a random UUID.
+
+optional arguments:
+  -h, --help             show this help message and exit
+
+
+CLUSTER_ID="$(bin/kafka-storage.sh random-uuid)"
+echo $CLUSTER_ID
+lTeNJUOsQOC58LHjewwfyg
+
+2.Format log directories using generated cluster id
+
+./bin/kafka-storage.sh format -t $CLUSTER_ID -c config/kraft/server.properties
+Formatting /tmp/kraft-combined-logs with metadata.version 3.6-IV2.
+
+3.Start kafka server with Kraft mode.
+
+./bin/kafka-server-start.sh config/kraft/server.properties
+
+4.create topic and test
+
+./bin/kafka-topics.sh --create --topic  order --bootstrap-server localhost:9092
+Created topic order
+
+./bin/kafka-topics.sh --describe --topic  order --bootstrap-server localhost:9092
+Topic: order    TopicId: jPNM6SA_SZGH-IbtQzpfkw PartitionCount: 1       ReplicationFactor: 1    Configs: segment.bytes=1073741824
+        Topic: order    Partition: 0    Leader: 1       Replicas: 1     Isr: 1
+
+....................................................................................
+			Replication-Multi node arch
+....................................................................................
+Multi node can be setup 
+
+1.using zookeeper
+2.using kraft.
+
+2.Using KRaft.
+..............
+
+Before setuping multi node cluster, we need to master , configuration files and its properties.
+
+Just Explore config files.
+
+Kafka/config/kraft
+
+  server.properties
+  broker.properties
+  controller.properties
+
+Note: when we setup cluster we dont need to use the same files, we can create our own files as well, these files have just template configurtaions.
+
+Here all properties file are same..
+
+We discussed already that KRaft can be configured using existing broker.
+
+You can configure any broker as "Only Controller" - We cant store topics data
+YOu can configure any broker as "Only Broker" - We can store topics data 
+You can configure any broker as "Controller and Broker" - we can store both data.
+
+server.properties => broker + controller.
+broker.properties =>Broker
+controller.properties =>controller 
+
+There is core configuration property.
+
+process.roles property
+
+
+process.roles=broker
+
+process.roles=broker,controller
+
+process.roles=controller
+
+Start Kafka in Kraft Mode:
+Note:
+ Before starting any server, we need to format log dir
+
+ ./bin/kafka-storage.sh format -t $CLUSTER_ID -c config/kraft/server.properties
+ ./bin/kafka-storage.sh format -t $CLUSTER_ID -c config/kraft/broker.properties
+ ./bin/kafka-storage.sh format -t $CLUSTER_ID -c config/kraft/controller.properties
+
+Start controller and broker in two command prompt.
+
+./bin/kafka-server-start.sh config/kraft/controller.properties
+./bin/kafka-server-start.sh config/kraft/broker.properties
+
+Start both controller and broker in one command prompt
+./bin/kafka-server-start.sh config/kraft/server.properties
+
+.....................................................................................
+
+Multi node setup:
+ 
+ You can use any combination 
+
+controller , controller, controller - three controller
+broker,broker,broker,broker,broker - 5 brokers
+
+server,server,server,server - four brokers and four controller...
+
+if you go with what ever combination, each node need to identified uniquely
+
+node.id=2
+
+server1 => node.id=1
+server2 => node.id=2
+server3==> node.id=3
+....................................................................................
+				Controller Configuration
+..................................................................................
+You can have multiple controllers in the same cluster.
+
+# The connect string for the controller quorum
+controller.quorum.voters=1@localhost:9093
+
+Here
+"1" is node=> node 1 is controller
+"localhost" => is host of the controller
+"9093" is port of the controller
+
+broker can talk to list of controllers also.
+
+Lets say i have two nodes
+
+1.node-1 and node-2
+
+node-1 is as broker
+node-2 is controller.
+
+
+node-1
+process.roles=broker
+node.id=1
+controller.quorum.voters=2@localhost:9093
+listeners=PLAINTEXT://localhost:9092
+
+node-2
+process.roles=controller
+node.id=2
+controller.quorum.voters=2@localhost:9093
+listeners=PLAINTEXT://localhost:9093
+....................................................................................
+server.properties - both controller and broker
+
+node-1
+process.roles=broker,controller
+node.id=1
+controller.quorum.voters=1@localhost:9092,2@localhost:9093
+listeners=PLAINTEXT://localhost:9092
+
+node-2
+process.roles=broker,controller
+node.id=2
+controller.quorum.voters=1@localhost:9092,2@localhost:9093
+listeners=PLAINTEXT://localhost:9093
+.....................................................................................
+				Socket server setttings
+.....................................................................................
+controller.properties:
+
+This syntax is specific to uri scheme - protocal syntax:
+ eg:
+   http://www.example.com:8080
+
+listeners = listener_name://host_name:port
+ |              |    
+variableName   protocal://hostName:port
+ 
+listeners=CONTROLLER://localhost:9093
+	     |           |        |
+          protocalName  host     port
+
+controller.listener.names=CONTROLLER
+
+eg:
+listeners=CONTROLLER://:9093
+.....................................................................................
+broker.properties
+
+listeners=PLAINTEXT://localhost:9092
+	    |           |
+          protocal    host:port
+
+# Name of listener used for communication between brokers.
+inter.broker.listener.name=PLAINTEXT
+...............................................................................
+
+server.properties
+
+listeners=PLAINTEXT://:9092,CONTROLLER://:9093
+ 	    |           |     |            |
+            protocal   port  protocal     port
+# Name of listener used for communication between brokers.
+
+inter.broker.listener.name=PLAINTEXT
+controller.listener.names=CONTROLLER
+.....................................................................................
+
+According to the above configuration, we can understand there are two protocals are used
+
+1.PLAINTEXT
+   PLAINTEXT IS protocal used by brokers for producer and consumer communication   
+2.CONTROLLER
+  CONTROLLER is protocal used by brokers and controllers for inter cluster communication
+
+listeners=PLAINTEXT://:9092,CONTROLLER://:9093
+ 
+Here,Broker is running in PLAINTEXT protocal with port of 9092 , and also Controller is also running with CONTROLLER Protocal with port of 9093
+ 
+Broker is running in port of 9092
+Controller is running in port of 9093
+....................................................................................
+				advertised.listeners
+....................................................................................
+advertised.listeners=PLAINTEXT:localhost:9092
+  This is configuration is necessary for the brokers who wants to be communicated by clients like Producers and consumers.
+.....................................................................................
+			 Log dirs
+.....................................................................................
+if you start multi node arch, each node must have its own log files.
+
+if you run multiple brokers and controllers in the single host, you need to specifiy the separate location.
+
+log.dirs=/tmp/server-1/kraft-combined-logs
+log.dirs=/tmp/server-2/kraft-combined-logs
+log.dirs=/tmp/server-3/kraft-combined-logs
+log.dirs=/tmp/server-4/kraft-combined-logs
+
+...................................................................................
+
+Lab:
+in ordert to setup we need three configuration files
+
+server1.properties
+server2.properties
+server3.properties
+
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0/config/kraft$ sudo cp server.properties server1.properties
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0/config/kraft$ sudo cp server.properties server2.properties
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0/config/kraft$ sudo cp server.properties server3.properties
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0/config/kraft$ ls -l
+total 48
+-rw-r--r-- 1 root root 6095 Sep 29 10:26 broker.properties
+-rw-r--r-- 1 root root 5724 Sep 29 10:26 controller.properties
+-rw-r--r-- 1 root root 6299 Sep 29 10:26 server.properties
+-rw-r--r-- 1 root root 6299 Nov 20 14:33 server1.properties
+-rw-r--r-- 1 root root 6299 Nov 20 14:33 server2.properties
+-rw-r--r-- 1 root root 6299 Nov 20 14:33 server3.properties
+
+Port Mapping:
+9092 -  broker port
+19092 - controller port
+
+
+Node1 Setup(server-1) server1.properties
+...........................................
+Note: COntroller port and broker port must be different.
+Controller port for controllers communication within cluster.
+broker port for external communication.
+
+process.roles=broker,controller
+# The node id associated with this instance's roles
+node.id=1
+
+#     listeners = PLAINTEXT://your.host.name:9092
+listeners=PLAINTEXT://:9092,CONTROLLER://:19092
+
+# The connect string for the controller quorum
+controller.quorum.voters=1@localhost:19092,2@localhost:19093,3@localhost:19094
+
+# Name of listener used for communication between brokers.
+inter.broker.listener.name=PLAINTEXT
+
+# Listener name, hostname and port the broker will advertise to clients.
+# If not set, it uses the value for "listeners".
+advertised.listeners=PLAINTEXT://localhost:9092
+
+log.dirs=/tmp/server1/kraft-combined-logs
+...................................................................................
+
+Node-2: server 2: server2.properties
+
+process.roles=broker,controller
+controller.quorum.voters=1@localhost:19092,2@localhost:19093,3@localhost:19094
+listeners=PLAINTEXT://:9093,CONTROLLER://:19093
+advertised.listeners=PLAINTEXT://localhost:9093
+log.dirs=/tmp/server-2/kraft-combined-logs
+.................................................................................
+
+Node-3:Server 3: server3.properties
+process.roles=broker,controller
+node.id=3
+controller.quorum.voters=1@localhost:19092,2@localhost:19093,3@localhost:19094
+listeners=PLAINTEXT://:9094,CONTROLLER://:19094
+advertised.listeners=PLAINTEXT://localhost:9094
+log.dirs=/tmp/server3/kraft-combined-logs
+..................................................................................
+Generate cluster id and formate all dirs
+..........................................
+./bin/kafka-storage.sh random-uuid
+hPewHnMUTA2uCi5cMqP6Rg
+
+We have format all storage directories, this is basically where we put in log.dirs 
+
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ./bin/kafka-storage.sh format -t hPewHnMUTA2uCi5cMqP6Rg -c ./config/kraft/server1.properties
+Formatting /tmp/server/kraft-combined-logs with metadata.version 3.6-IV2.
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ./bin/kafka-storage.sh format -t hPewHnMUTA2uCi5cMqP6Rg -c ./config/kraft/server2.properties
+Formatting /tmp/server-2/kraft-combined-logs with metadata.version 3.6-IV2.
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ./bin/kafka-storage.sh format -t hPewHnMUTA2uCi5cMqP6Rg -c ./config/kraft/server3.properties
+Formatting /tmp/server3/kraft-combined-logs with metadata.version 3.6-IV2.
+s
+
+We need to allocate max memory, in order to work cluster properly.
+
+export KAFKA_HEAP_OPTS="-Xmx200M -Xms100M"
+
+before starting server : we have to run this.
+
+./bin/kafka-server-start.sh ./config/kraft/server1.properties
+./bin/kafka-server-start.sh ./config/kraft/server2.properties
+./bin/kafka-server-start.sh ./config/kraft/server3.properties
+
+Test all kafka servers are running.
+
+jcmd | grep kafka
+17248 kafka.Kafka ./config/kraft/server2.properties
+18248 kafka.Kafka ./config/kraft/server1.properties
+17753 kafka.Kafka ./config/kraft/server3.properties
+....................................................................................
+			Create topic and replicate them
+....................................................................................
+ ./bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic todos --partitions 2 --replication-factor 3
+Created topic todos.
+
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ./bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic todos
+Topic: todos    TopicId: 9nml7MiDTEKdRvh2pFRI-w PartitionCount: 2       ReplicationFactor: 3    Configs: segment.bytes=1073741824
+        Topic: todos    Partition: 0    Leader: 1       Replicas: 1,2,3 Isr: 1,2,3
+        Topic: todos    Partition: 1    Leader: 2       Replicas: 2,3,1 Isr: 2,3,1
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ./bin/kafka-topics.sh --bootstrap-server localhost:9093 --describe --topic todos
+Topic: todos    TopicId: 9nml7MiDTEKdRvh2pFRI-w PartitionCount: 2       ReplicationFactor: 3    Configs: segment.bytes=1073741824
+        Topic: todos    Partition: 0    Leader: 1       Replicas: 1,2,3 Isr: 1,2,3
+        Topic: todos    Partition: 1    Leader: 2       Replicas: 2,3,1 Isr: 2,3,1
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ./bin/kafka-topics.sh --bootstrap-server localhost:9094 --describe --topic todos
+Topic: todos    TopicId: 9nml7MiDTEKdRvh2pFRI-w PartitionCount: 2       ReplicationFactor: 3    Configs: segment.bytes=1073741824
+        Topic: todos    Partition: 0    Leader: 1       Replicas: 1,2,3 Isr: 1,2,3
+        Topic: todos    Partition: 1    Leader: 2       Replicas: 2,3,1 Isr: 2,3,1
+
+Here partition:0 Leader:1
+
+ for 0th partition leader is node 1
+ for 1st parttion leader is node 2
+
+Just stop any leader node and describe, again restart failed node...
+
+
+Just producer and consume message:
+./bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic todos
+./bin/kafka-console-consumer.sh --bootstrap-server localhost:9094 --topic todos
+.....................................................................................
+			   Kafka Connect
+.....................................................................................
+Kafka provides two layers
+
+1.Storage Layer
+  How to store events
+  topic partition-segemation
+  Replication
+  
+2.Compute Layer
+  How to process data from kafka storage.
+
+.....................................................................................
+Kafka Connect is also producers and consumers only but  we dont need to write any code to transfer data from source to desitnation via kakfka.
+
+Kafka is simply a tool for scalably and reliably streaming data between kafka and other systems.
+
+It makes it simple to quickly define connectors that move large data sets "in and out " of Kafka.
+Kafka Connect can ingest entire databases or collect metrics from all your application servers into kafka topics.
+
+Connect Core concepts:
+1.Connect
+   It is server,which performs read and write data from the the data stores into kafka storage layer called broker.
+
+2.Connector:
+  It is java lib/jar file which provides high level abstraction that cares of data transfers like jdbc drivers.
+
+3.Task:
+  The implementation of how data is compied to or from kafka.
+
+4.Workers
+  The workers or connect are running process that execute connectors and tasks.
+
+5.Converters
+    Data seralization and Deseralization process, that is done by using kafka schema   registry.
+
+Types of connectors:
+1.source connector
+   Collect data and send into kafka topic
+2.Sink connectors
+   Collect data from the kafka topic and send to other systems.
+
+Implementation:
+ Kafka communiunity provides 1000 of connectors for different type of data need.
+
+https://www.confluent.io/hub/
+
+Note: all connectors are not free, some are open source, some are paid one....
+.....................................................................................
+				Connectors Implmementations
+.....................................................................................
+
+We need two servers:
+
+1.storage server - kafka server 
+  ->zoo keeper with kafka
+  ->kraft with kafka
+
+2.connector server
+  -> standalone mode - single server...
+  -> distributed mode - cluster mode, like kafka cluster, you can setup connect cluster
+
+configuration file for connect server:
+
+config/connect-standalone.properties
+
+Basic configuration:
+bootstrap.servers=localhost:9092
+  This connect server is going to talk to which kafka broker/brokers.
+
+
+key.converter=org.apache.kafka.connect.json.JsonConverter
+value.converter=org.apache.kafka.connect.json.JsonConverter
+
+	The converters specify the format of data in Kafka and how to translate it into Connect data. 
+	Every Connect user will need to configure these based on the format they want their data in when loaded from or stored into Kafka
+
+key.converter.schemas.enable=true
+value.converter.schemas.enable=true
+.....................................................................................
+
+Plugins(Connectors):
+ Plugin is java jar file which is used to connect datasource with kafka connect.
+
+config/connect-standalone.properties
+
+# plugin.path=/usr/local/share/java,/usr/local/share/kafka/plugins,/opt/connectors,
+#plugin.path=
+
+list of jar files to be loaded by connect server
+
+plugin.path=libs
+.....................................................................................
+
+Demo:
+ How to transfer data from the text file into kafka topic and from kafka topic into another text file.
+
+Apache kafka distribution provides basic connectors called file processing connector
+you dont need to install from connector hub.
+
+lib/connect-file-3.6.0.jar
+  To data from the disk file and transfer data into kafka topic.
+
+Note :
+ if any connector provide configuration files,that has to be passed as parameter.
+
+By default, file connector , apache kafka distribution provides the configuration
+
+config/connect-file-source.properties - from file into kafka topic
+config/connect-file-sink.properties - from kafka topic to file
+
+
+file-source-properties:
+
+name=local-file-source
+connector.class=FileStreamSource
+tasks.max=1
+file=test.txt
+topic=connect-test
+
+connect-file-sink.properties
+
+name=local-file-sink
+connector.class=FileStreamSink
+tasks.max=1
+file=test.sink.txt
+topics=connect-test
+
+
+steps:
+1.create test.txt file and keep some data.
+echo -e "hello" > test.txt
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ls -l
+total 80
+-rw-r--r-- 1 subu subu 14973 Sep 29 10:26 LICENSE
+-rw-r--r-- 1 subu subu 28184 Sep 29 10:26 NOTICE
+drwxr-xr-x 3 subu subu  4096 Sep 29 10:30 bin
+drwxr-xr-x 3 subu subu  4096 Sep 29 10:30 config
+drwxr-xr-x 2 subu subu 12288 Nov 20 14:54 libs
+drwxr-xr-x 2 subu subu  4096 Sep 29 10:30 licenses
+drwxr-xr-x 2 subu subu  4096 Nov 20 16:13 logs
+drwxr-xr-x 2 subu subu  4096 Sep 29 10:30 site-docs
+-rw-r--r-- 1 subu subu     6 Nov 20 17:02 test.txt
+
+ File would have been created in the root folder.
+
+2.plugin.path config in config/connect-standalone.properties
+plugin.path=libs/connect-file-3.6.0.jar
+
+3.Start server broker with zookeeper or kraft.
+Broker with Kraft:
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ./bin/kafka-storage.sh random-uuid
+MmOpT2aPRSiPmj71e3hbfw
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ./bin/kafka-storage.sh format -t MmOpT2aPRSiPmj71e3hbfw -c ./config/kraft/server.properties
+Formatting /tmp/kraft-combined-logs with metadata.version 3.6-IV2.
+subu@LAPTOP-R2TGGFDL:~/kafka_2.12-3.6.0$ ./bin/kafka-server-start.sh config/kraft/server.properties
+
+4.Start connect(Connect Server)
+./bin/connect-standalone.sh config/connect-standalone.properties config/connect-file-source.properties config/connect-file-sink.properties
+
+
+5.Consume events from the topic
+
+./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic connect-test --from-beginning
+{"schema":{"type":"string","optional":false},"payload":"hello"}
+{"schema":{"type":"string","optional":false},"payload":"how are you"}
+{"schema":{"type":"string","optional":false},"payload":"simply data transfer works"}
+
+
+6.Run another command prompt , write message into file , observe the consumer.
+
+echo simply data transfer works  >> test.txt
+
+7.Run antother command prompt, read message from the topic.
+
+$more test.sink.txt
+hello
+how are you
+simply data transfer works
+...................................................................................
+			  Confluent Platform
+.....................................................................................
+
+Confluent is basically a company who gives enterprise "Kafka Platform",Confluent kafka.
+
+Confluent kafka is abstraction on the top of apache kafka.
+
+Confluent Kafka provides various production ready features.
+
+There are two major deployments
+ -Cloud
+ -Self Managed
+
+Self managed:
+
+Choose An Installation Type
+   Install Confluent Platform on a single local machine by using ZIP or TAR archives or Docker images.
+
+Local
+  -zip - windows
+  -tar -  linux
+  -docker 
+Distributed
+  -Kubernets
+  -Ansible Playbooks
+
+
+Step:
+
+https://www.confluent.io/installation/
+
+curl -O https://packages.confluent.io/archive/7.4/confluent-7.4.2.tar.gz
+
+tar xzf confluent-7.4.2.tar.gz
+
+
+Folder	Description
+/bin/	Driver scripts for starting and stopping services
+/etc/	Configuration files
+/lib/	Systemd services
+/libexec/	Multi-platform CLI binaries
+/share/	Jars and licenses
+/src/	Source files that require a platform-dependent build
+
+Optionally configure CONFLUENT_HOME
+
+export CONFLUENT_HOME=<The directory where Confluent is installed>
+eg:
+export CONFLUENT_HOME=/home/subu/confluent-7.5.2
+
+export PATH=$PATH:$CONFLUENT_HOME/bin
+
+confluent --help
+Manage your Confluent Cloud or Confluent Platform. Log in to see all available commands.
+
+Usage:
+  confluent [command]
+
+Available Commands:
+  cloud-signup    Sign up for Confluent Cloud.
+  completion      Print shell completion code.
+  configuration   Configure the Confluent CLI.
+  context         Manage CLI configuration contexts.
+  help            Help about any command
+  kafka           Manage Apache Kafka.
+  local           Manage a local Confluent Platform development environment.
+  login           Log in to Confluent Cloud or Confluent Platform.
+  logout          Log out of Confluent Cloud or Confluent Platform.
+  plugin          Manage Confluent plugins.
+  prompt          Add Confluent CLI context to your terminal prompt.
+  secret          Manage secrets for Confluent Platform.
+  shell           Start an interactive shell.
+  update          Update the Confluent CLI.
+  version         Show version of the Confluent CLI.
+
+Flags:
+      --version         Show version of the Confluent CLI.
+  -h, --help            Show help for this command.
+      --unsafe-trace    Equivalent to -vvvv, but also log HTTP requests and responses which might contain plaintext secrets.
+  -v, --verbose count   Increase verbosity (-v for warn, -vv for info, -vvv for debug, -vvvv for trace).
+
+Use "confluent [command] --help" for more information about a command.
+
+
+Confluent platform is used in two mode
+
+1.local mode - dev,testing
+2.prod mode -production mode
+
+if you are going to use confluent local,the command starts like below
+
+confluent local --help
+Use the "confluent local" commands to try out Confluent Platform by running a single-node instance locally on your machine. Keep in mind, these commands require Java to run.
+
+Usage:
+  confluent local [command]
+
+Available Commands:
+  current     Get the path of the current Confluent run.
+  destroy     Delete the data and logs for the current Confluent run.
+  services    Manage Confluent Platform services.
+  version     Print the Confluent Platform version.
+
+Global Flags:
+  -h, --help            Show help for this command.
+      --unsafe-trace    Equivalent to -vvvv, but also log HTTP requests and responses which may contain plaintext secrets.
+  -v, --verbose count   Increase verbosity (-v for warn, -vv for info, -vvv for debug, -vvvv for trace).
+
+Use "confluent local [command] --help" for more information about a command.
+
+
+ confluent local services --help
+Manage Confluent Platform services.
+
+Usage:
+  confluent local services [command]
+
+Available Commands:
+  connect         Manage Connect.
+  control-center  Manage Control Center.
+  kafka           Manage Apache Kafka®.
+  kafka-rest      Manage Kafka REST.
+  ksql-server     Manage ksqlDB Server.
+  list            List all Confluent Platform services.
+  schema-registry Manage Schema Registry.
+  start           Start all Confluent Platform services.
+  status          Check the status of all Confluent Platform services.
+  stop            Stop all Confluent Platform services.
+  top             View resource usage for all Confluent Platform services.
+  zookeeper       Manage Apache ZooKeeper™.
+
+Global Flags:
+  -h, --help            Show help for this command.
+      --unsafe-trace    Equivalent to -vvvv, but also log HTTP requests and responses which might contain plaintext secrets.
+  -v, --verbose count   Increase verbosity (-v for warn, -vv for info, -vvv for debug, -vvvv for trace).
+
+Use "confluent local services [command] --help" for more information about a command.
+
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+Services :
+  To start zookeeper,kafka broker,........
+
+./confluent local services --help
+Manage Confluent Platform services.
+
+Usage:
+  confluent local services [command]
+
+Available Commands:
+  connect         Manage Connect.
+  control-center  Manage Control Center.
+  kafka           Manage Apache Kafka®.
+  kafka-rest      Manage Kafka REST.
+  ksql-server     Manage ksqlDB Server.
+  list            List all Confluent Platform services.
+  schema-registry Manage Schema Registry.
+  start           Start all Confluent Platform services.
+  status          Check the status of all Confluent Platform services.
+  stop            Stop all Confluent Platform services.
+  top             View resource usage for all Confluent Platform services.
+  zookeeper       Manage Apache ZooKeeper™.
+
+How to start Confluent Platform services?
+
+./confluent local services start
+The local commands are intended for a single-node development environment only, NOT for production usage. See more: https://docs.confluent.io/current/cli/index.html
+As of Confluent Platform 8.0, Java 8 is no longer supported.
+
+Using CONFLUENT_CURRENT: /tmp/confluent.629193
+Starting ZooKeeper
+ZooKeeper is [UP]
+Starting Kafka
+Kafka is [UP]
+Starting Schema Registry
+Schema Registry is [UP]
+Starting Kafka REST
+Kafka REST is [UP]
+Starting Connect
+Connect is [UP]
+Starting ksqlDB Server
+ksqlDB Server is [UP]
+Starting Control Center
+Control Center is [UP]
+.....................................................................................
+.....................................................................................
+How to use confluent platform?
+
+Like :
+ How to interact with kafka broker for create,publish,consume messages
+
+There are two ways
+
+1.Using gui tools
+http://localhost:9021/clusters
+2.Using cli tools
+.....................................................................................
+			 Confluent Connect
+......................................................................................
+JDBC Connectors:
+1.JDBC Source Connector
+   Database to Kafka topic
+2.JDBC Sink connector
+   Kafka topic to Database.
+
+What is jdbc connector?
+  Jdbc connector is just jar file
+
+In order to install jdbc connector into confluent platform we have two ways
+
+1.manuall installation
+2.via confulent hub client cli tool
+
+Req:
+ 1.jdbc connector
+ 2.What database you are going to connect for mysql or postgresql,mssql,monogodb   etc..
+   you need driver jar file
+
+HUB URL:
+https://www.confluent.io/hub/
+
+JDBC Connector (Source and Sink)
+
+confluent-hub install confluentinc/kafka-connect-jdbc:10.7.4
+
+ confluent-hub install confluentinc/kafka-connect-jdbc:10.7.4
+The component can be installed in any of the following Confluent Platform installations:
+  1. /home/subu/confluent-7.5.2 (based on $CONFLUENT_HOME)
+  2. /home/subu/confluent-7.5.2 (where this tool is installed)
+Choose one of these to continue the installation (1-2): 1
+Do you want to install this into /home/subu/confluent-7.5.2/share/confluent-hub-components? (yN) y
+
+
+Component's license:
+Confluent Community License
+https://www.confluent.io/confluent-community-license
+I agree to the software license agreement (yN) y
+
+Downloading component Kafka Connect JDBC 10.7.4, provided by Confluent, Inc. from Confluent Hub and installing into /home/subu/confluent-7.5.2/share/confluent-hub-components
+Detected Worker's configs:
+  1. Standard: /home/subu/confluent-7.5.2/etc/kafka/connect-distributed.properties
+  2. Standard: /home/subu/confluent-7.5.2/etc/kafka/connect-standalone.properties
+  3. Standard: /home/subu/confluent-7.5.2/etc/schema-registry/connect-avro-distributed.properties
+  4. Standard: /home/subu/confluent-7.5.2/etc/schema-registry/connect-avro-standalone.properties
+  5. Based on CONFLUENT_CURRENT: /tmp/confluent.340776/connect/connect.properties
+  6. Used by Connect process with PID 14635: /tmp/confluent.340776/connect/connect.properties
+Do you want to update all detected configs? (yN) y
+
+Adding installation directory to plugin path in the following files:
+  /home/subu/confluent-7.5.2/etc/kafka/connect-distributed.properties
+  /home/subu/confluent-7.5.2/etc/kafka/connect-standalone.properties
+  /home/subu/confluent-7.5.2/etc/schema-registry/connect-avro-distributed.properties
+  /home/subu/confluent-7.5.2/etc/schema-registry/connect-avro-standalone.properties
+  /tmp/confluent.340776/connect/connect.properties
+  /tmp/confluent.340776/connect/connect.properties
+
+Completed.
+
+...................................................................................
+
+make sure that kafka-connect-jdbc-10.7.4.jar file is available 
+
+home\subu\confluent-7.4.2\share\confluent-hub-components\confluentinc-kafka-connect-jdbc\lib
+
+copy jdbc driver files also inthe same location.
+
+home\subu\confluent-7.4.1\share\confluent-hub-components\confluentinc-kafka-connect-jdbc\lib
+
+mysql-connector-java-8.0.16.jar
+
+...................................................................................
+
+After installing make sure /etc/kafka/server.properties files are having the below configuration
+
+listeners=PLAINTEXT://localhost:9092
+
+# Listener name, hostname and port the broker will advertise to clients.
+# If not set, it uses the value for "listeners".
+advertised.listeners=PLAINTEXT://localhost:9092
+....................................................................................
+
+..................................................................................
+
+Make sure that etc/kafka/connect-standalone.properties
+
+plugin.path=/home/subu/confluent-7.5.2/share/confluent-hub-components
+
+the above configuration is mapped.
+..................................................................................
+
+..................................................................................
+
+We have to start database: Mysql.
+
+Start mysql server:
+ This mysql server contains ready made database called inventory.
+
+docker run -it --rm --name mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=debezium -e MYSQL_USER=mysqluser -e MYSQL_PASSWORD=mysqlpw quay.io/debezium/example-mysql:2.3
+
+start Mysql client utilty in powershell
+
+ docker run -it --rm --name mysqlterm --link mysql --rm mysql:8.0 sh -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'
+
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| inventory          |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+5 rows in set (0.00 sec)
+
+Change database
+
+mysql> use inventory
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+
+mysql> show tables;
++---------------------+
+| Tables_in_inventory |
++---------------------+
+| addresses           |
+| customers           |
+| geom                |
+| orders              |
+| products            |
+| products_on_hand    |
++---------------------+
+6 rows in set (0.00 sec)
+mysql> select *from orders;
++--------------+------------+-----------+----------+------------+
+| order_number | order_date | purchaser | quantity | product_id |
++--------------+------------+-----------+----------+------------+
+|        10001 | 2016-01-16 |      1001 |        1 |        102 |
+|        10002 | 2016-01-17 |      1002 |        2 |        105 |
+|        10003 | 2016-02-19 |      1002 |        2 |        106 |
+|        10004 | 2016-02-21 |      1003 |        1 |        107 |
++--------------+------------+-----------+----------+------------+
+4 rows in set (0.00 sec)
+
+mysql> select *from customers;
++------+------------+-----------+-----------------------+
+| id   | first_name | last_name | email                 |
++------+------------+-----------+-----------------------+
+| 1001 | Sally      | Thomas    | sally.thomas@acme.com |
+| 1002 | George     | Bailey    | gbailey@foobar.com    |
+| 1003 | Edward     | Walker    | ed@walker.com         |
+| 1004 | Anne       | Kretchmar | annek@noanswer.org    |
++------+------------+-----------+-----------------------+
+4 rows in set (0.00 sec)
+
+................
+
+
+Start/Restart all confluent services
+.....................................................................................
+
+We have done so far
+
+1.we have installed connector jars and jdbc drivers
+2.we have started database -mysql
+
+
+Now we need to start pushing data from mysql database to kafka.
+
+We need to push "configuration" to connect service(server)
+
+ Do you remember we have used "connect-file-source.properties" which configuration.
+
+instead of having separate configuration file, we can push to connect server via 
+GUI tool or curl utility. it should be HTTP post call.
+
+
+instead of having separate configuration file, we can push to connect server via 
+GUI tool or curl utility. it should be HTTP post call.
+
+Basic connector configuration:
+{
+  "name": "JdbcSourceConnectorConnector_0",
+  "config": {
+    "name": "JdbcSourceConnectorConnector_0",
+    "connector.class": "io.confluent.connect.jdbc.JdbcSourceConnector",
+    "connection.url": "jdbc:mysql://127.0.0.1:3306/inventory?verifyServerCertificate=false&useSSL=true&requireSSL=true",
+    "connection.user": "mysqluser",
+    "connection.password": "mysqlpw",
+    "mode": "bulk"
+  }
+}
+
+How to push the above configuration to connect server?
+
+http://localhost:9021/clusters/I3jfof3mQDCHEkX8SZMCww/management/connect/connect-default/connectors
+
+Go to connect option
+
+ Select "connect-defalut"
+	YOu can find connectors
+   
+ click--->   JDBCSourceconnector --> Add configuration and lanuch,, 
+
+You can see now the data started moving from database to kafka topics.
+.....................................................................................
+			 CDC -Change Data Capture
+....................................................................................
+What is CDC?
+Change data capture (CDC) refers to the process of identifying and capturing changes made to data in a database and then delivering those changes in real-time to a downstream process or system.
+
+CDC is technology which monitors database's underlying log files if any changes happen, those changes are condisered as event, those events are converted into kafka records, read by kafka connector and sent to kafka storage...
+
+How to  implement CDC?
+
+There is lot of platforms and tools available CDC, there is one open source platform
+called "Debezium".
+
+if you want to build microservices , with "event driven design patterns" -  saga,transactionaloutbox , can be implemented with Debezium.
+
+What is Debezium?
+  Debezium kafka platform, which is built on the top of kakfa core....
+ Who provides CDC implementation for most of the databases.
+
+	Debezium is an open source distributed platform for change data capture. Start it up, point it at your databases, and your apps can start responding to all of the inserts, updates, and deletes that other apps commit to your databases. Debezium is durable and fast, so your apps can respond quickly and never miss an event, even when things go wrong.
+
+Docker setup:
+2.you can use docker compose or indiduval docker commands.
+
+Start Zookeeper
+
+Start Kafka
+
+Start a MySQL database
+
+Start a MySQL command line client
+
+Start Kafka Connect
+..
+
+This tutorial uses Docker and the Debezium container images to run the ZooKeeper, Kafka, Debezium, and MySQL services. 
+
+$ docker run -it --rm --name zookeeper -p 2181:2181 -p 2888:2888 -p 3888:3888 quay.io/debezium/zookeeper:2.3
+
+$ docker run -it --rm --name kafka -p 9092:9092 --link zookeeper:zookeeper quay.io/debezium/kafka:2.3
+
+$ docker run -it --rm --name mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=debezium -e MYSQL_USER=mysqluser -e MYSQL_PASSWORD=mysqlpw quay.io/debezium/example-mysql:2.3
+
+$ docker run -it --rm --name mysqlterm --link mysql --rm mysql:8.0 sh -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'
+
+docker run -it --rm --name connect -p 8083:8083 -e GROUP_ID=1 -e CONFIG_STORAGE_TOPIC=my_connect_configs -e OFFSET_STORAGE_TOPIC=my_connect_offsets -e STATUS_STORAGE_TOPIC=my_connect_statuses --link kafka:kafka --link mysql:mysql quay.io/debezium/connect:2.3
+
+
+Deploying the MySQL connector
+
+After starting the Debezium and MySQL services, you are ready to deploy the Debezium MySQL connector so that it can start monitoring the sample MySQL database (inventory).
+
+At this point, you are running the Debezium services, a MySQL database server with a sample inventory database, and the MySQL command line client that is connected to the database. To deploy the MySQL connector, you must:
+
+Register the MySQL connector to monitor the inventory database
+
+After the connector is registered, it will start monitoring the database server’s binlog and it will generate change events for each row that changes.
+
+Watch the MySQL connector start
+
+Reviewing the Kafka Connect log output as the connector starts helps you to better understand each task it must complete before it can start monitoring the binlog.
+
+What is binlog?
+  binary log
+
+The binary log contains “events” that describe database changes such as table creation operations or changes to table data. It also contains events for statements that potentially could have made changes (for example, a DELETE which matched no rows), unless row-based logging is used.
+
+Note:
+In a production environment, you would typically either use the Kafka tools to manually create the necessary topics, including specifying the number of replicas, or you’d use the Kafka Connect mechanism for customizing the settings of auto-created topics. However, for this tutorial, Kafka is configured to automatically create the topics with just one replica.
+
+Procedure:
+Review the configuration of the Debezium MySQL connector that you will register.
+
+Before registering the connector, you should be familiar with its configuration. In the next step, you will register the following connector:
+
+{
+  "name": "inventory-connector",  
+  "config": {  
+    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+    "tasks.max": "1",  
+    "database.hostname": "mysql",  
+    "database.port": "3306",
+    "database.user": "debezium",
+    "database.password": "dbz",
+    "database.server.id": "184054",  
+    "topic.prefix": "dbserver1",  
+    "database.include.list": "inventory",  
+    "schema.history.internal.kafka.bootstrap.servers": "kafka:9092",  
+    "schema.history.internal.kafka.topic": "schema-changes.inventory"  
+  }
+}
+
+2.Open a new terminal, and use the curl command to register the Debezium MySQL connector.
+
+Note: use git bash 
+
+$ curl -i -X POST -H "Accept:application/json" -H "Content-Type:application/json" localhost:8083/connectors/ -d '{ "name": "inventory-connector", "config": { "connector.class": "io.debezium.connector.mysql.MySqlConnector", "tasks.max": "1", "database.hostname": "mysql", "database.port": "3306", "database.user": "debezium", "database.password": "dbz", "database.server.id": "184054", "topic.prefix": "dbserver1", "database.include.list": "inventory", "schema.history.internal.kafka.bootstrap.servers": "kafka:9092", "schema.history.internal.kafka.topic": "schemahistory.inventory" } }'
+
+After installing :
+Test
+http://localhost:8083/connectors/
+
+Response:
+[
+"inventory-connector"
+]
+
+http://localhost:8083/connectors/inventory-connector
+
+{
+name: "inventory-connector",
+config: {
+connector.class: "io.debezium.connector.mysql.MySqlConnector",
+database.user: "debezium",
+topic.prefix: "dbserver1",
+schema.history.internal.kafka.topic: "schemahistory.inventory",
+database.server.id: "184054",
+tasks.max: "1",
+database.hostname: "mysql",
+database.password: "dbz",
+name: "inventory-connector",
+schema.history.internal.kafka.bootstrap.servers: "kafka:9092",
+database.port: "3306",
+database.include.list: "inventory"
+},
+tasks: [
+{
+connector: "inventory-connector",
+task: 0
+}
+],
+type: "source"
+}
+
+Viewing change events
+After deploying the Debezium MySQL connector, it starts monitoring the inventory database for data change events.
+
+Viewing a create event
+
+Updating the database and viewing the update event
+
+Deleting a record in the database and viewing the delete event
+
+Restarting Kafka Connect and changing the database
+
+..
+
+Watch inside docker terminal changes
+in the topic
+./kafka-topics.sh --list --bootstrap-server 172.17.0.1:9092
+__consumer_offsets
+dbserver1
+dbserver1.inventory.addresses
+dbserver1.inventory.customers
+dbserver1.inventory.geom
+dbserver1.inventory.orders
+dbserver1.inventory.products
+dbserver1.inventory.products_on_hand
+my_connect_configs
+my_connect_offsets
+my_connect_statuses
+schemahistory.inventory
+
+ ./kafka-topics.sh --topic  dbserver1.inventory.customers --describe --bootstrap-server 172.17.0.1:9092
+Topic: dbserver1.inventory.customers    TopicId: G6hEi6d5ThKpKwjGxl-Ujg PartitionCount: 1       ReplicationFactor: 1    Configs: 
+        Topic: dbserver1.inventory.customers    Partition: 0    Leader: 1       Replicas: 1     Isr: 1
+
+./kafka-console-consumer.sh  --bootstrap-server 172.17.0.1:9092 --topic dbserver1.inventory.customers --from-beginning
+
+Watching:
+Updating the databases and viewing the update event.
+
+h-5.2$ ls
+LICENSE  NOTICE  bin  config  config.orig  data  libs  licenses  logs
+sh-5.2$ cd bin
+sh-5.2$ ls
+connect-distributed.sh        kafka-console-producer.sh    kafka-leader-election.sh       kafka-run-class.sh                  kafka-verifiable-producer.sh
+connect-mirror-maker.sh       kafka-consumer-groups.sh     kafka-log-dirs.sh              kafka-server-start.sh               trogdor.sh
+connect-standalone.sh         kafka-consumer-perf-test.sh  kafka-metadata-quorum.sh       kafka-server-stop.sh                windows
+kafka-acls.sh                 kafka-delegation-tokens.sh   kafka-metadata-shell.sh        kafka-storage.sh                    zookeeper-security-migration.sh
+kafka-broker-api-versions.sh  kafka-delete-records.sh      kafka-mirror-maker.sh          kafka-streams-application-reset.sh  zookeeper-server-start.sh
+kafka-cluster.sh              kafka-dump-log.sh            kafka-producer-perf-test.sh    kafka-topics.sh                     zookeeper-server-stop.sh
+kafka-configs.sh              kafka-features.sh            kafka-reassign-partitions.sh   kafka-transactions.sh               zookeeper-shell.sh
+kafka-console-consumer.sh     kafka-get-offsets.sh         kafka-replica-verification.sh  kafka-verifiable-consumer.sh
+sh-5.2$ kafka-topics.sh --list --bootstrap-server 172.17.0.1:9092
+sh: kafka-topics.sh: command not found
+sh-5.2$ ./kafka-topics.sh --list --bootstrap-server 172.17.0.1:9092
+__consumer_offsets
+dbserver1
+dbserver1.inventory.addresses
+dbserver1.inventory.customers
+dbserver1.inventory.geom
+dbserver1.inventory.orders
+dbserver1.inventory.products
+dbserver1.inventory.products_on_hand
+my_connect_configs
+my_connect_offsets
+my_connect_statuses
+schemahistory.inventory
+sh-5.2$ 
+
+Clean up:
+docker stop mysqlterm watcher connect mysql kafka zookeeper
+mysqlterm
+watcher
+connect
+mysql
+kafka
+zookeeper
+.....................................................................................
+			  Kafka Streams and KSQL DB
+.....................................................................................
+
+Streaming:
+  Flow of data, while moving data from one place to another place, we can process those data, which is called stream processing.
+
+  Kafka is sending data as events, which is flow of data, which is called kafka streams.
+
+  In the begining of kafka there was no way to process  events while streaming.
+
+  Later of Kafka releases who introduced a concept or api or tool called "Kafka Streaming"
+
+  Kafka streaming abstraction is java apis which can be used to process on going kafka events and process usefull reports.
+
+
+stream - x=10, x=20 x=30 =>  topic x:10,x:20,x:30
+Compactation: deleting duplicate entries
+table    x=10, x=20 x=30 =>  topic x=30
+.....................................................................................
+
+KSQL Db Setup:
+
+docker-compose-ksqldb.yml
+---
+version: '2'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  broker:
+    image: confluentinc/cp-kafka:7.4.0
+    hostname: broker
+    container_name: broker
+    depends_on:
+      - zookeeper
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+  ksqldb-server:
+    image: confluentinc/ksqldb-server:0.29.0
+    hostname: ksqldb-server
+    container_name: ksqldb-server
+    depends_on:
+      - broker
+    ports:
+      - "8088:8088"
+    environment:
+      KSQL_LISTENERS: http://0.0.0.0:8088
+      KSQL_BOOTSTRAP_SERVERS: broker:9092
+      KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: "true"
+      KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: "true"
+
+  ksqldb-cli:
+    image: confluentinc/ksqldb-cli:0.29.0
+    container_name: ksqldb-cli
+    depends_on:
+      - broker
+      - ksqldb-server
+    entrypoint: /bin/sh
+    tty: true
+
+...................................................................................
+
+Lanuch KQLDB Cli:
+.................
+
+docker exec -it ksqldb-cli ksql http://ksqldb-server:8088
+
+
+Stream Processing:
+
+1.create stream and bind with topic.
+
+ if topic is not created already, you can create topic via stream also.
+
+ksql> create stream todos_stream(title VARCHAR,status VARCHAR) WITH (KAFKA_TOPIC='todos',VALUE_FORMAT='DELIMITED',PARTITIONS=2)
+>;
+
+ Message
+----------------
+ Stream created
+----------------
+ksql> list streams
+>;
+
+ Stream Name         | Kafka Topic                 | Key Format | Value Format | Windowed
+------------------------------------------------------------------------------------------
+ KSQL_PROCESSING_LOG | default_ksql_processing_log | KAFKA      | JSON         | false
+ TODOS_STREAM        | todos                       | KAFKA      | DELIMITED    | false
+------------------------------------------------------------------------------------------
+ksql> describe todos_stream;
+
+Name                 : TODOS_STREAM
+ Field  | Type
+--------------------------
+ TITLE  | VARCHAR(STRING)
+ STATUS | VARCHAR(STRING)
+--------------------------
+For runtime statistics and query details run: DESCRIBE <Stream,Table> EXTENDED;
+
+
+You can insert data into stream, it is availble inside kafka topic.
+
+You can insert data into topic, event is available inside kafka stream.
+
+ksql> INSERT INTO todos_stream(title,status) VALUES('learn kafka','onprogress');
+ksql> INSERT INTO todos_stream(title,status) VALUES('learn streams','onprogress');
+
+eg:
+ kafka-console-consumer --bootstrap-server localhost:9092 --topic todos --from-beginning
+learn kafka,onprogress
+learn streams,onprogress
+
+
+How to select data?
+
+PULL QUERY:
+ executes query,get data, and terminate.
+
+ SELECT title,status from todos_stream;
+
+PUSH QUERY:
+ executes query , get data , wont terminate.
+
+ SELECT title,status from todos_stream EMIT CHANGES;
++---------------------------------------------------------+---------------------------------------------------------+
+|TITLE                                                    |STATUS                                                   |
++---------------------------------------------------------+---------------------------------------------------------+
+|learn java                                               |done                                                     |
+
+[appuser@broker ~]$ kafka-console-producer --bootstrap-server localhost:9092 --topic todos
+>learn java,done.
+
+Here you dont see the old/histrical data.
+
+if you want histrical and live data both.
+ SET 'auto.offset.reset'='earliest'
+>;Query terminated
+Successfully changed local property 'auto.offset.reset' to 'earliest'. Use the UNSET command to revert your change.
+ksql> SELECT title,status from todos_stream EMIT CHANGES;
++---------------------------------------------------------+---------------------------------------------------------+
+|TITLE                                                    |STATUS                                                   |
++---------------------------------------------------------+---------------------------------------------------------+
+|learn kafka                                              |onprogress                                               |
+|learn streams                                            |onprogress                                               |
+|learn java                                               |done                                                     |
+...................................................................................
+
+Create stream from stream:
+..........................
+CREATE STREAM TODOS_UPPERSTREAM as SELECT UCASE(title) as TODOTITLE from todos_stream EMIT CHANGES;
+
+ Message
+------------------------------------------------
+ Created query with ID CSAS_TODOS_UPPERSTREAM_3
+------------------------------------------------
+ksql> list streams;
+
+ Stream Name         | Kafka Topic                 | Key Format | Value Format | Windowed
+------------------------------------------------------------------------------------------
+ KSQL_PROCESSING_LOG | default_ksql_processing_log | KAFKA      | JSON         | false
+ TODOS_STREAM        | todos                       | KAFKA      | DELIMITED    | false
+ TODOS_UPPERSTREAM   | TODOS_UPPERSTREAM           | KAFKA      | DELIMITED    | false
+------------------------------------------------------------------------------------------
+ksql> DESCRIBE todos_upperstream;
+
+Name                 : TODOS_UPPERSTREAM
+ Field     | Type
+-----------------------------
+ TODOTITLE | VARCHAR(STRING)
+-----------------------------
+For runtime statistics and query details run: DESCRIBE <Stream,Table> EXTENDED;
+ksql> SELECT TODOTITLE from todos_upperstream;
++--------------------------------------------------------------------------------------------------------------------+
+|TODOTITLE                                                                                                           |
++--------------------------------------------------------------------------------------------------------------------+
+|LEARN KAFKA                                                                                                         |
+|LEARN STREAMS                                                                                                       |
+|LEARN JAVA                                                                                                          |
+Query Completed
+Query terminated
+ksql> SELECT TODOTITLE from todos_upperstream emit changes;
++--------------------------------------------------------------------------------------------------------------------+
+|TODOTITLE                                                                                                           |
++--------------------------------------------------------------------------------------------------------------------+
+|LEARN STREAMS                                                                                                       |
+|LEARN KAFKA                                                                                                         |
+|LEARN JAVA                                                                                                          |
+|HOW ARE YOU                                                                                                         |
+|STREAMING                                                                                                           |
+^CQuery terminated
+
+
+Statefull operations: tables:
+
+Create STREAM readings(sensor VARCHAR KEY,reading DOUBLE,location VARCHAR) WITH (kafka_topic='readings',value_format='json',partitions=3);
+
+INSERT INTO readings(sensor,reading,location) VALUES('sensor-1',45,'wheel');
+INSERT INTO readings(sensor,reading,location) VALUES('sensor-2',42,'motor');
+INSERT INTO readings(sensor,reading,location) VALUES('sensor-1',42,'wheel');
+INSERT INTO readings(sensor,reading,location) VALUES('sensor-3',42,'muffler');
+
+CREATE TABLE avg_readings AS SELECT sensor, AVG(reading) AS avg FROM readings GROUP BY sensor EMIT CHANGES;
+
+ Message
+-------------------------------------------
+ Created query with ID CTAS_AVG_READINGS_7
+-------------------------------------------
+ksql>
+
+open new command prompt try to insert  data into stream, you can find the table got updated with latest value only instead of showing log of values.
+
+
+Command Prompt:
+sql> INSERT INTO readings(sensor,reading,location) VALUES('sensor-1',45,'wheel');
+ksql> INSERT INTO readings(sensor,reading,location) VALUES('sensor-1',50,'wheel');
+ksql>
+^C
+ksql> INSERT INTO readings(sensor,reading,location) VALUES('sensor-1',70,'wheel');
+ksql>
+
+
+
+ksql> SELECT sensor,avg from avg_readings;
++---------------------------------------------------------+---------------------------------------------------------+
+|SENSOR                                                   |AVG                                                      |
++---------------------------------------------------------+---------------------------------------------------------+
+|sensor-1                                                 |45.5                                                     |
+|sensor-2                                                 |42.0                                                     |
+|sensor-3                                                 |42.0                                                     |
+Query terminated
+ksql> SELECT sensor,avg from avg_readings;
++---------------------------------------------------------+---------------------------------------------------------+
+|SENSOR                                                   |AVG                                                      |
++---------------------------------------------------------+---------------------------------------------------------+
+|sensor-1                                                 |50.4                                                     |
+|sensor-2                                                 |42.0                                                     |
+|sensor-3                                                 |42.0                                                     |
+Query terminated
+k
+
+Link:
+https://docs.ksqldb.io/en/latest/developer-guide/ksqldb-reference/create-table/
+...................................................................................
+		 Event Driven Microservices with Spring Boot
+....................................................................................
+
+Events Sourcing:
+Data base Per service
+   =>Saga
+   =>Transactional Outbox-CDC
+.....................................................................................
+
+Spring Implementation
+
+1.Spring-kafka - Kafka Template.
+	<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+		</dependency>
+
+You publish messages and consume messages.
+....................................................................................
+			  Microservices
+
+1.SAGA pattern,CQRS Pattern,Transactional outbox....
+
+1.Spring Cloud:
+https://spring.io/projects/spring-cloud-stream
+  publishing and consuming events.
+
+2.Spring cloud data flow - Stream Processing...
+https://spring.io/projects/spring-cloud-dataflow
+
+
+https://github.com/GreenwaysTechnology/IRIS-Spring-MicroServices
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  

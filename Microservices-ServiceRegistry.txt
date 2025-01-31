@@ -1,6 +1,6 @@
-			  Service Discovery and Registry
+			     Service Discovery and Registry
 .....................................................................................
-pattern:Service discovery
+Pattern: Service discovery
 
 How does the client of an RPI-based service discover the network location of a service instance?
 
@@ -46,7 +46,7 @@ A Quarkus integration, but Stork can be used in any environment
 Service Registry:
   It is a database which can store all services with serviceName and its location
 
-Service Registry Implementations are Apache zoo keeper,Consul,DNS,Kubernets,Eureka..
+Service Registry Implementations are Apache zoo Consul,DNS,Kubernets,Eureka..
 
 Strok is just abstraction(apis) which binds registry's for registration,discovery,load balancing
 
@@ -254,9 +254,9 @@ Note:
 
 Running Multiple copies of the same service: Why should i do that?
 
-Uase cases:
+Use cases:
 
-1.For scalling purpose , so that we balance more load.
+1.For scaling purpose , so that we balance more load.
 2.Failover, what if one service is down, so that other services will take care
 
 SmallRye Stork has in built load balancers
